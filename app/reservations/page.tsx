@@ -11,6 +11,7 @@ export default function Reservations() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Omit<NewReservation, 'id' | 'created_at' | 'user_id'>>({
     guest_name: '',
     check_in: '',
@@ -53,18 +54,42 @@ export default function Reservations() {
         status: formData.status as Database['public']['Tables']['reservations']['Row']['status']
       }
 
-      const { error } = await (supabase as any)
-        .from('reservations')
-        .insert([newReservation])
+      let error
+      if (editingId) {
+        const { error: updateError } = await (supabase as any)
+          .from('reservations')
+          .update(newReservation)
+          .eq('id', editingId)
+        error = updateError
+      } else {
+        const { error: insertError } = await (supabase as any)
+          .from('reservations')
+          .insert([newReservation])
+        error = insertError
+      }
       
       if (error) throw error
       
       setShowForm(false)
+      setEditingId(null)
       setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 0, status: 'confirmed', notes: '' })
       fetchReservations()
     } catch (error: any) {
-      alert('Error creating reservation: ' + error.message)
+      alert('Error saving reservation: ' + error.message)
     }
+  }
+
+  const handleEdit = (reservation: Reservation) => {
+    setEditingId(reservation.id)
+    setFormData({
+      guest_name: reservation.guest_name,
+      check_in: reservation.check_in,
+      check_out: reservation.check_out,
+      total_price: reservation.total_price,
+      status: reservation.status,
+      notes: reservation.notes
+    })
+    setShowForm(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -88,14 +113,20 @@ export default function Reservations() {
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h1>Reservations</h1>
-          <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
+          <button className="btn-primary" onClick={() => {
+            setShowForm(!showForm)
+            if (showForm) {
+              setEditingId(null)
+              setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 0, status: 'confirmed', notes: '' })
+            }
+          }}>
             {showForm ? 'Cancel' : '+ New Reservation'}
           </button>
         </div>
 
         {showForm && (
           <div className="card">
-            <h3>New Reservation</h3>
+            <h3>{editingId ? 'Edit Reservation' : 'New Reservation'}</h3>
             <form onSubmit={handleCreate}>
               <div className="grid-3">
                 <input name="guest_name" placeholder="Guest Name" value={formData.guest_name} onChange={handleChange} className="input-field" required />
@@ -109,7 +140,7 @@ export default function Reservations() {
                 </select>
                 <input name="notes" placeholder="Notes (Optional)" value={formData.notes || ''} onChange={handleChange} className="input-field" />
               </div>
-              <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>Save Reservation</button>
+              <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>{editingId ? 'Update' : 'Save'} Reservation</button>
             </form>
           </div>
         )}
@@ -145,6 +176,7 @@ export default function Reservations() {
                     </td>
                     <td style={{ fontWeight: '500' }}>${res.total_price}</td>
                     <td>
+                      <button className="btn-primary" style={{ marginRight: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleEdit(res)}>Edit</button>
                       <button className="btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleDelete(res.id)}>Delete</button>
                     </td>
                   </tr>
