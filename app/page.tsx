@@ -64,7 +64,7 @@ export default function Dashboard() {
       <div>
         <h1 style={{ marginBottom: '1.5rem' }}>Dashboard</h1>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div className="dashboard-header">
           <div>
              <Calendar reservations={stats.reservations} />
           </div>

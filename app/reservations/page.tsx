@@ -123,7 +123,7 @@ export default function Reservations() {
   return (
     <AuthGuard>
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div className="page-header">
           <h1>Reservations</h1>
           <button className="btn-primary" onClick={() => {
             setShowForm(!showForm)
