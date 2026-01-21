@@ -21,6 +21,9 @@ export default function Reservations() {
     notes: ''
   })
 
+  // Get today's date in YYYY-MM-DD format for min attribute
+  const today = new Date().toISOString().split('T')[0]
+
   useEffect(() => {
     fetchReservations()
   }, [])
@@ -47,6 +50,15 @@ export default function Reservations() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user')
+
+      // Validate dates
+      const today = new Date().toISOString().split('T')[0]
+      if (formData.check_in < today) {
+        throw new Error('Check-in date cannot be in the past')
+      }
+      if (formData.check_out < formData.check_in) {
+        throw new Error('Check-out date must be after check-in date')
+      }
 
       const newReservation: NewReservation = {
         ...formData,
@@ -130,8 +142,8 @@ export default function Reservations() {
             <form onSubmit={handleCreate}>
               <div className="grid-3">
                 <input name="guest_name" placeholder="Guest Name" value={formData.guest_name} onChange={handleChange} className="input-field" required />
-                <input name="check_in" type="date" placeholder="Check In" value={formData.check_in} onChange={handleChange} className="input-field" required />
-                <input name="check_out" type="date" placeholder="Check Out" value={formData.check_out} onChange={handleChange} className="input-field" required />
+                <input name="check_in" type="date" min={today} placeholder="Check In" value={formData.check_in} onChange={handleChange} className="input-field" required />
+                <input name="check_out" type="date" min={formData.check_in || today} placeholder="Check Out" value={formData.check_out} onChange={handleChange} className="input-field" required />
                 <input name="total_price" type="number" placeholder="Total Price" value={formData.total_price || ''} onChange={handleChange} className="input-field" required />
                 <select name="status" value={formData.status} onChange={handleChange} className="input-field">
                   <option value="confirmed">Confirmed</option>
