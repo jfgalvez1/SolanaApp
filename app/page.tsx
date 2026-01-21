@@ -70,7 +70,7 @@ export default function Dashboard() {
     const start = parseISO(`${selectedMonth}-01`)
     const currentMonthReservations = allReservations.filter(r => {
       if (!r.check_in) return false
-      return isSameMonth(parseISO(r.check_in), start) && r.status === 'confirmed'
+      return isSameMonth(parseISO(r.check_in), start) && ['confirmed', 'reserved'].includes(r.status)
     })
 
     const currentMonthExpenses = allExpenses.filter(e => {
@@ -82,7 +82,7 @@ export default function Dashboard() {
     const monthlyExpenses = currentMonthExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
 
     // Overall Stats
-    const confirmedReservations = allReservations.filter(r => r.status === 'confirmed')
+    const confirmedReservations = allReservations.filter(r => ['confirmed', 'reserved'].includes(r.status))
     const overallRevenue = confirmedReservations.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0)
     const overallExpenses = allExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
 

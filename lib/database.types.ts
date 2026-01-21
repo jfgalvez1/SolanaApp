@@ -46,7 +46,7 @@ export interface Database {
           check_in: string
           check_out: string
           total_price: number
-          status: 'confirmed' | 'pending' | 'cancelled' | 'completed'
+          status: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes: string | null
           created_at: string
         }
@@ -57,7 +57,7 @@ export interface Database {
           check_in: string
           check_out: string
           total_price: number
-          status?: 'confirmed' | 'pending' | 'cancelled' | 'completed'
+          status?: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes?: string | null
           created_at?: string
         }
@@ -68,7 +68,7 @@ export interface Database {
           check_in?: string
           check_out?: string
           total_price?: number
-          status?: 'confirmed' | 'pending' | 'cancelled' | 'completed'
+          status?: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes?: string | null
           created_at?: string
         }

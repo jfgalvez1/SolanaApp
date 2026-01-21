@@ -40,17 +40,13 @@ export default function Calendar({ reservations }: CalendarProps) {
 
   const getDayStatus = (day: Date) => {
     const isReserved = reservations.some(res => {
-      if (res.status !== 'confirmed') return false
+      // Highlight if status is 'confirmed' or 'reserved'
+      if (!['confirmed', 'reserved'].includes(res.status)) return false
+      
       const checkIn = parseISO(res.check_in)
       const checkOut = parseISO(res.check_out)
+      
       // Exclude checkout date from highlighted interval
-      // Use subDays(checkOut, 1) or just check explicitly if day is before checkOut
-      // But isWithinInterval is inclusive. So we want [checkIn, checkOut - 1 day]
-      // However, if checkIn == checkOut (impossible typically, but 1 day means checkIn -> next day checkOut)
-      // If 1 night: 2023-10-01 to 2023-10-02. We want 2023-10-01 only.
-      // interval { start: 2023-10-01, end: 2023-10-01 }
-      const intervalEnd = subMonths(checkOut, 0) // Just to clone? No, subtract 1 day.
-      // Wait, let's use date math.
       const adjustedEnd = new Date(checkOut)
       adjustedEnd.setDate(adjustedEnd.getDate() - 1)
       

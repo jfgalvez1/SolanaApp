@@ -147,7 +147,7 @@ export default function Reservations() {
                 <input name="total_price" type="number" placeholder="Total Price" value={formData.total_price || ''} onChange={handleChange} className="input-field" required />
                 <select name="status" value={formData.status} onChange={handleChange} className="input-field">
                   <option value="confirmed">Confirmed</option>
-                  <option value="pending">Pending</option>
+                  <option value="reserved">Reserved</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
                 <input name="notes" placeholder="Notes (Optional)" value={formData.notes || ''} onChange={handleChange} className="input-field" />
