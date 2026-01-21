@@ -156,6 +156,27 @@ th {
   margin-bottom: 1.5rem;
 }
 
+.month-selector {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.month-selector label {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.month-selector select {
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  font-size: 1rem;
+  cursor: pointer;
+  background-color: var(--card-bg);
+  min-width: 150px;
+}
+
 @media (max-width: 768px) {
   .main-content {
     padding: 1rem;
@@ -163,22 +184,40 @@ th {
 
   .dashboard-header {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 1.5rem;
   }
   
   .page-header {
     flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
+    align-items: center; /* Center visuals */
+    text-align: center;
+    gap: 1.5rem;
+  }
+
+  /* Specific fix for the Month Selector Header to align items nicely */
+  .month-selector-header {
+    align-items: center;
+  }
+
+  .month-selector {
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .month-selector select {
+    width: 100%;
+    margin-top: 0.25rem;
   }
 
   .page-header h1 {
     margin-bottom: 0.5rem;
-    text-align: center;
+    width: 100%;
   }
   
   .page-header button {
     width: 100%;
+    max-width: 300px; /* Prevent being too wide on slightly larger inputs */
   }
 
   .navbar {
@@ -192,23 +231,24 @@ th {
     justify-content: center;
     gap: 1rem;
     flex-wrap: wrap;
+    margin-bottom: 0.5rem;
   }
   
   .grid-3 {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 1.5rem;
   }
 
   .card {
-    padding: 1rem;
-    margin-bottom: 1rem;
+     padding: 1.5rem;
+     margin-bottom: 1.5rem;
   }
   
   h1 {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
   }
   
   .stat-value {
-    font-size: 1.5rem;
+    font-size: 2rem;
   }
 }
