@@ -12,11 +12,12 @@ export default function Reservations() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [pax, setPax] = useState<number>(2)
   const [formData, setFormData] = useState<Omit<NewReservation, 'id' | 'created_at' | 'user_id'>>({
     guest_name: '',
     check_in: '',
     check_out: '',
-    total_price: 0,
+    total_price: 2500,
     status: 'confirmed',
     notes: ''
   })
@@ -84,7 +85,8 @@ export default function Reservations() {
       
       setShowForm(false)
       setEditingId(null)
-      setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 0, status: 'confirmed', notes: '' })
+      setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 2500, status: 'confirmed', notes: '' })
+      setPax(2)
       fetchReservations()
     } catch (error: any) {
       alert('Error saving reservation: ' + error.message)
@@ -101,6 +103,25 @@ export default function Reservations() {
       status: reservation.status,
       notes: reservation.notes
     })
+    
+    let days = 1
+    if (reservation.check_in && reservation.check_out) {
+      const start = new Date(reservation.check_in)
+      const end = new Date(reservation.check_out)
+      const timeDiff = end.getTime() - start.getTime()
+      if (timeDiff > 0) {
+        days = Math.ceil(timeDiff / (1000 * 3600 * 24))
+      }
+    }
+    
+    let calculatedPax = 2
+    if (reservation.total_price) {
+      const basePrice = reservation.total_price / days
+      if (basePrice > 2500) {
+        calculatedPax = Math.min(5, 2 + Math.floor((basePrice - 2500) / 500))
+      }
+    }
+    setPax(calculatedPax)
     setShowForm(true)
   }
 
@@ -116,8 +137,46 @@ export default function Reservations() {
   }
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const value = e.target.name === 'total_price' ? Number(e.target.value) : e.target.value
-    setFormData({ ...formData, [e.target.name]: value })
+    const name = e.target.name
+    const value = name === 'total_price' ? Number(e.target.value) : e.target.value
+    
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value }
+      
+      if (name === 'check_in' || name === 'check_out') {
+        const startStr = name === 'check_in' ? value as string : prev.check_in
+        const endStr = name === 'check_out' ? value as string : prev.check_out
+        
+        if (startStr && endStr) {
+          const start = new Date(startStr)
+          const end = new Date(endStr)
+          const timeDiff = end.getTime() - start.getTime()
+          const days = timeDiff > 0 ? Math.ceil(timeDiff / (1000 * 3600 * 24)) : 1
+          const basePrice = 2500 + (pax > 2 ? (pax - 2) * 500 : 0)
+          newData.total_price = basePrice * days
+        }
+      }
+      return newData
+    })
+  }
+
+  const handlePaxChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newPax = Number(e.target.value)
+    setPax(newPax)
+    
+    setFormData(prev => {
+      let days = 1
+      if (prev.check_in && prev.check_out) {
+        const start = new Date(prev.check_in)
+        const end = new Date(prev.check_out)
+        const timeDiff = end.getTime() - start.getTime()
+        if (timeDiff > 0) {
+          days = Math.ceil(timeDiff / (1000 * 3600 * 24))
+        }
+      }
+      const basePrice = 2500 + (newPax > 2 ? (newPax - 2) * 500 : 0)
+      return { ...prev, total_price: basePrice * days }
+    })
   }
 
   return (
@@ -129,7 +188,8 @@ export default function Reservations() {
             setShowForm(!showForm)
             if (showForm) {
               setEditingId(null)
-              setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 0, status: 'confirmed', notes: '' })
+              setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 2500, status: 'confirmed', notes: '' })
+              setPax(2)
             }
           }}>
             {showForm ? 'Cancel' : '+ New Reservation'}
@@ -144,6 +204,16 @@ export default function Reservations() {
                 <input name="guest_name" placeholder="Guest Name" value={formData.guest_name} onChange={handleChange} className="input-field" required />
                 <input name="check_in" type="date" min={today} placeholder="Check In" value={formData.check_in} onChange={handleChange} className="input-field" required />
                 <input name="check_out" type="date" min={formData.check_in || today} placeholder="Check Out" value={formData.check_out} onChange={handleChange} className="input-field" required />
+                <select name="pax" value={pax} onChange={handlePaxChange} className="input-field">
+                  {[...Array(5)].map((_, i) => {
+                    const n = i + 1;
+                    return (
+                      <option key={n} value={n}>
+                        {n} Pax {n > 2 ? `(+₱${(n - 2) * 500})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
                 <input name="total_price" type="number" placeholder="Total Price" value={formData.total_price || ''} onChange={handleChange} className="input-field" required />
                 <select name="status" value={formData.status} onChange={handleChange} className="input-field">
                   <option value="confirmed">Confirmed</option>
@@ -179,7 +249,9 @@ export default function Reservations() {
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.notes}</div>
                     </td>
                     <td>
-                      {res.check_in} <span style={{ color: 'var(--text-muted)' }}>to</span> {res.check_out}
+                      {new Date(res.check_in).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })} 
+                      <span style={{ color: 'var(--text-muted)', margin: '0 0.25rem' }}>to</span> 
+                      {new Date(res.check_out).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })}
                     </td>
                     <td>
                       <span className={`status-badge status-${res.status}`}>
