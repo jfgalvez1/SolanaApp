@@ -159,7 +159,7 @@ export default function Expenses() {
                     <td>{item.date}</td>
                     <td>{item.description}</td>
                     <td style={{ textTransform: 'capitalize' }}>{item.category}</td>
-                    <td style={{ fontWeight: '500', color: 'var(--danger)' }}>-${item.amount}</td>
+                    <td style={{ fontWeight: '500', color: 'var(--danger)' }}>-₱{item.amount}</td>
                     <td>
                       <button className="btn-primary" style={{ marginRight: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleEdit(item)}>Edit</button>
                       <button className="btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleDelete(item.id)}>Delete</button>

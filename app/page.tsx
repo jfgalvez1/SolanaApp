@@ -139,16 +139,16 @@ export default function Dashboard() {
         <div className="grid-3" style={{ marginBottom: '2rem' }}>
           <div className="card">
             <h3>Revenue</h3>
-            <div className="stat-value" style={{ color: 'var(--primary)' }}>PHP{stats.monthlyRevenue.toFixed(2)}</div>
+            <div className="stat-value" style={{ color: 'var(--primary)' }}>₱{stats.monthlyRevenue.toFixed(2)}</div>
           </div>
           <div className="card">
             <h3>Expenses</h3>
-            <div className="stat-value" style={{ color: 'var(--danger)' }}>PHP{stats.monthlyExpenses.toFixed(2)}</div>
+            <div className="stat-value" style={{ color: 'var(--danger)' }}>₱{stats.monthlyExpenses.toFixed(2)}</div>
           </div>
           <div className="card">
             <h3>Net Profit</h3>
             <div className="stat-value" style={{ color: stats.monthlyProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-              PHP{stats.monthlyProfit.toFixed(2)}
+              ₱{stats.monthlyProfit.toFixed(2)}
             </div>
           </div>
         </div>
@@ -158,16 +158,16 @@ export default function Dashboard() {
         <div className="grid-3">
           <div className="card">
             <h3>Total Revenue</h3>
-            <div className="stat-value" style={{ color: 'var(--primary)' }}>PHP{stats.overallRevenue.toFixed(2)}</div>
+            <div className="stat-value" style={{ color: 'var(--primary)' }}>₱{stats.overallRevenue.toFixed(2)}</div>
           </div>
           <div className="card">
             <h3>Total Expenses</h3>
-            <div className="stat-value" style={{ color: 'var(--danger)' }}>PHP{stats.overallExpenses.toFixed(2)}</div>
+            <div className="stat-value" style={{ color: 'var(--danger)' }}>₱{stats.overallExpenses.toFixed(2)}</div>
           </div>
           <div className="card">
             <h3>Net Profit</h3>
             <div className="stat-value" style={{ color: stats.overallProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-              PHP{stats.overallProfit.toFixed(2)}
+              ₱{stats.overallProfit.toFixed(2)}
             </div>
           </div>
         </div>
