@@ -22,6 +22,10 @@ export default function Tracker() {
   const [sales, setSales] = useState<SalesLogItem[]>([])
   const [isLoadingSales, setIsLoadingSales] = useState(true)
   const [saleForm, setSaleForm] = useState({ inventory_id: '', quantity_sold: '1' })
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null)
+  
+  // Track original sale details for calculating stock/profit differences on edit
+  const [originalSaleCtx, setOriginalSaleCtx] = useState<{ id: string, qty: number, inv_id: string } | null>(null)
 
   useEffect(() => {
     fetchInventory()
@@ -70,8 +74,15 @@ export default function Tracker() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      const payload: Database['public']['Tables']['inventory']['Insert'] = {
+      const insertPayload: Database['public']['Tables']['inventory']['Insert'] = {
         user_id: user.id,
+        product_name: invForm.product_name,
+        cost: Number(invForm.cost),
+        price: Number(invForm.price),
+        stock: Number(invForm.stock)
+      }
+
+      const updatePayload = {
         product_name: invForm.product_name,
         cost: Number(invForm.cost),
         price: Number(invForm.price),
@@ -82,14 +93,14 @@ export default function Tracker() {
         const { error } = await supabase
           .from('inventory')
           // @ts-expect-error - Expected type mismatch due to Supabase type generation generic inference failing
-          .update(payload)
+          .update(updatePayload)
           .eq('id', editingInvId)
         if (error) throw error
       } else {
         const { error } = await supabase
           .from('inventory')
           // @ts-expect-error - Expected type mismatch
-          .insert([payload])
+          .insert([insertPayload])
         if (error) throw error
       }
 
@@ -133,46 +144,130 @@ export default function Tracker() {
       if (!selectedProduct) throw new Error('Please select a valid product')
 
       const qty = Number(saleForm.quantity_sold)
-      if (qty > selectedProduct.stock) {
-        throw new Error(`Cannot sell more than available stock (${selectedProduct.stock})`)
-      }
-
       const profitPerItem = selectedProduct.price - selectedProduct.cost
       const totalProfitForSale = profitPerItem * qty
 
-      // 1. Log the sale
-      const salePayload: Database['public']['Tables']['sales_log']['Insert'] = {
-        user_id: user.id,
-        inventory_id: selectedProduct.id,
-        quantity_sold: qty,
-        profit: totalProfitForSale
-      }
-      
-      const { error: saleError } = await supabase
-        .from('sales_log')
-        // @ts-expect-error - Expected type mismatch
-        .insert([salePayload])
-      
-      if (saleError) throw saleError
+      if (editingSaleId && originalSaleCtx) {
+        // --- EDIT EXISTING SALE ---
+        // 1. Calculate difference in quantity sold
+        const qtyDiff = qty - originalSaleCtx.qty
+        
+        // Check if there's enough stock for the INCREASE in sales quantity
+        if (qtyDiff > 0 && qtyDiff > selectedProduct.stock) {
+           throw new Error(`Cannot increase sale by ${qtyDiff}. Only ${selectedProduct.stock} items available in stock.`)
+        }
 
-      // 2. Reduce the stock
-      const updatePayload: Database['public']['Tables']['inventory']['Update'] = {
-        stock: selectedProduct.stock - qty
-      }
-      
-      const { error: updateError } = await supabase
-        .from('inventory')
-        // @ts-expect-error - Expected type mismatch
-        .update(updatePayload)
-        .eq('id', selectedProduct.id)
+        // 2. Update the sale record
+        const saleUpdatePayload: Database['public']['Tables']['sales_log']['Update'] = {
+          inventory_id: selectedProduct.id,
+          quantity_sold: qty,
+          profit: totalProfitForSale
+        }
+        
+        const { error: saleEditError } = await supabase
+          .from('sales_log')
+          // @ts-expect-error - Expected type mismatch
+          .update(saleUpdatePayload)
+          .eq('id', editingSaleId)
+          
+        if (saleEditError) throw saleEditError
 
-      if (updateError) throw updateError
+        // 3. Adjust the inventory stock by the difference
+        const invUpdatePayload: Database['public']['Tables']['inventory']['Update'] = {
+          stock: selectedProduct.stock - qtyDiff
+        }
+        
+        const { error: invEditError } = await supabase
+          .from('inventory')
+          // @ts-expect-error - Expected type mismatch
+          .update(invUpdatePayload)
+          .eq('id', selectedProduct.id)
+          
+        if (invEditError) throw invEditError
+        
+      } else {
+        // --- CREATE NEW SALE ---
+        if (qty > selectedProduct.stock) {
+          throw new Error(`Cannot sell more than available stock (${selectedProduct.stock})`)
+        }
+
+        const salePayload: Database['public']['Tables']['sales_log']['Insert'] = {
+          user_id: user.id,
+          inventory_id: selectedProduct.id,
+          quantity_sold: qty,
+          profit: totalProfitForSale
+        }
+        
+        const { error: saleError } = await supabase
+          .from('sales_log')
+          // @ts-expect-error - Expected type mismatch
+          .insert([salePayload])
+        
+        if (saleError) throw saleError
+
+        const updatePayload: Database['public']['Tables']['inventory']['Update'] = {
+          stock: selectedProduct.stock - qty
+        }
+        
+        const { error: updateError } = await supabase
+          .from('inventory')
+          // @ts-expect-error - Expected type mismatch
+          .update(updatePayload)
+          .eq('id', selectedProduct.id)
+
+        if (updateError) throw updateError
+      }
 
       setSaleForm({ inventory_id: '', quantity_sold: '1' })
+      setEditingSaleId(null)
+      setOriginalSaleCtx(null)
       fetchInventory()
       fetchSales()
     } catch (error: any) {
       alert('Error recording sale: ' + error.message)
+    }
+  }
+
+  const handleEditSale = (sale: SalesLogItem) => {
+    setEditingSaleId(sale.id)
+    setOriginalSaleCtx({ id: sale.id, qty: sale.quantity_sold, inv_id: sale.inventory_id })
+    setSaleForm({
+      inventory_id: sale.inventory_id,
+      quantity_sold: sale.quantity_sold.toString()
+    })
+  }
+
+  const handleDeleteSale = async (sale: SalesLogItem) => {
+    if (!window.confirm('Are you sure you want to delete this sales record? The stock quantity will be returned to the inventory.')) return;
+    
+    try {
+      // 1. Delete the sale record
+      const { error: deleteError } = await supabase.from('sales_log').delete().eq('id', sale.id)
+      if (deleteError) throw deleteError
+
+      // 2. Return the stock back to inventory
+      // First, get the current stock to ensure we return it accurately
+      const { data: currentInvData } = await supabase
+        .from('inventory')
+        .select('stock')
+        .eq('id', sale.inventory_id)
+        .single<any>()
+        
+      if (currentInvData) {
+        const returnPayload = { stock: currentInvData.stock + sale.quantity_sold }
+        const { error: invError } = await supabase
+          .from('inventory')
+          // @ts-expect-error - expected mismatch
+          .update(returnPayload)
+          .eq('id', sale.inventory_id)
+          
+        if (invError) console.error("Warning: Deleted sale but failed to return stock", invError)
+      }
+
+      fetchInventory()
+      fetchSales()
+    } catch (error: any) {
+      alert('Error deleting sale: ' + error.message)
     }
   }
 
@@ -234,6 +329,14 @@ export default function Tracker() {
                     placeholder="Selling Price (₱)" 
                     value={invForm.price} 
                     onChange={e => setInvForm({...invForm, price: e.target.value})} 
+                    className="input-field" 
+                    required 
+                  />
+                  <input 
+                    type="number" 
+                    placeholder="Initial Stock" 
+                    value={invForm.stock} 
+                    onChange={e => setInvForm({...invForm, stock: e.target.value})} 
                     className="input-field" 
                     required 
                   />
@@ -358,7 +461,23 @@ export default function Tracker() {
                       required 
                     />
                   </div>
-                  <button type="submit" className="btn-primary" style={{ width: '100%' }}>Log Sale & Subtract Stock</button>
+                  <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+                    {editingSaleId ? 'Update Sale Record' : 'Log Sale & Subtract Stock'}
+                  </button>
+                  {editingSaleId && (
+                    <button 
+                      type="button" 
+                      className="btn-danger" 
+                      style={{ width: '100%', marginTop: '0.5rem', backgroundColor: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                      onClick={() => {
+                        setEditingSaleId(null)
+                        setOriginalSaleCtx(null)
+                        setSaleForm({ inventory_id: '', quantity_sold: '1' })
+                      }}
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
                 </form>
               )}
             </div>
@@ -385,17 +504,36 @@ export default function Tracker() {
                         <th>Product</th>
                         <th>Qty</th>
                         <th>Profit Earned</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sales.length === 0 ? (
-                        <tr><td colSpan={4} style={{ textAlign: 'center' }}>No sales recorded yet.</td></tr>
+                        <tr><td colSpan={5} style={{ textAlign: 'center' }}>No sales recorded yet.</td></tr>
                       ) : sales.map(sale => (
-                        <tr key={sale.id}>
+                        <tr key={sale.id} style={{ backgroundColor: editingSaleId === sale.id ? 'var(--bg-card-hover)' : 'transparent' }}>
                           <td>{new Date(sale.created_at).toLocaleDateString()}</td>
                           <td>{sale.inventory?.product_name || 'Unknown'}</td>
                           <td>{sale.quantity_sold}</td>
                           <td style={{ color: 'var(--success)', fontWeight: '500' }}>₱{Number(sale.profit).toFixed(2)}</td>
+                          <td>
+                            <button 
+                              className="btn-primary" 
+                              style={{ marginRight: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} 
+                              onClick={() => handleEditSale(sale)}
+                              disabled={!!editingSaleId}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              className="btn-danger" 
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} 
+                              onClick={() => handleDeleteSale(sale)}
+                              disabled={!!editingSaleId}
+                            >
+                              Delete
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
