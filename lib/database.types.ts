@@ -38,6 +38,61 @@ export interface Database {
           created_at?: string
         }
       }
+      inventory: {
+        Row: {
+          id: string
+          user_id: string
+          product_name: string
+          cost: number
+          price: number
+          stock: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          product_name: string
+          cost: number
+          price: number
+          stock?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          product_name?: string
+          cost?: number
+          price?: number
+          stock?: number
+          created_at?: string
+        }
+      }
+      sales_log: {
+        Row: {
+          id: string
+          user_id: string
+          inventory_id: string
+          quantity_sold: number
+          profit: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          inventory_id: string
+          quantity_sold: number
+          profit: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          inventory_id?: string
+          quantity_sold?: number
+          profit?: number
+          created_at?: string
+        }
+      }
       reservations: {
         Row: {
           id: string
@@ -78,18 +133,21 @@ export interface Database {
           id: string
           email: string | null
           full_name: string | null
+          safety_code: string | null
           updated_at: string | null
         }
         Insert: {
           id: string
           email?: string | null
           full_name?: string | null
+          safety_code?: string | null
           updated_at?: string | null
         }
         Update: {
           id?: string
           email?: string | null
           full_name?: string | null
+          safety_code?: string | null
           updated_at?: string | null
         }
       }

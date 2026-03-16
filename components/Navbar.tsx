@@ -16,6 +16,8 @@ const Navbar = () => {
         <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>Dashboard</Link>
         <Link href="/reservations" className={`nav-link ${pathname === '/reservations' ? 'active' : ''}`}>Reservations</Link>
         <Link href="/expenses" className={`nav-link ${pathname === '/expenses' ? 'active' : ''}`}>Expenses</Link>
+        <Link href="/safety-lock" className={`nav-link ${pathname === '/safety-lock' ? 'active' : ''}`}>Safety Lock</Link>
+        <Link href="/tracker" className={`nav-link ${pathname === '/tracker' ? 'active' : ''}`}>Tracker</Link>
       </div>
       <button onClick={signOut} className="btn-primary" style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
         Sign Out
