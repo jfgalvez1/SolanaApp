@@ -4,13 +4,16 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../components/AuthProvider'
 import AuthGuard from '../components/AuthGuard'
 import Calendar from '../components/Calendar'
-import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMonths, startOfYear } from 'date-fns'
+import CircularProgress from '../components/CircularProgress'
+import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMonths, startOfYear, getDaysInMonth, eachDayOfInterval, startOfDay } from 'date-fns'
 
 interface Stats {
   monthlyRevenue: number
   monthlyExpenses: number
   monthlyProfit: number
   monthlyBookingCount: number
+  occupiedNightsCount: number
+  occupancyRate: number
   overallRevenue: number
   overallExpenses: number
   overallProfit: number
@@ -20,7 +23,7 @@ interface Stats {
 export default function Dashboard() {
   const { user } = useAuth()
   const [stats, setStats] = useState<Stats>({ 
-    monthlyRevenue: 0, monthlyExpenses: 0, monthlyProfit: 0, monthlyBookingCount: 0, 
+    monthlyRevenue: 0, monthlyExpenses: 0, monthlyProfit: 0, monthlyBookingCount: 0, occupiedNightsCount: 0, occupancyRate: 0,
     overallRevenue: 0, overallExpenses: 0, overallProfit: 0,
     reservations: [] 
   })
@@ -68,6 +71,25 @@ export default function Dashboard() {
   const calculateStats = () => {
     // Monthly Stats
     const start = parseISO(`${selectedMonth}-01`)
+    const end = endOfMonth(start)
+    const daysInMonth = getDaysInMonth(start)
+    
+    let occupiedDaysCount = 0
+    const monthDays = eachDayOfInterval({ start, end })
+
+    monthDays.forEach(day => {
+      const isOccupied = allReservations.some(r => {
+        if (!['confirmed', 'reserved'].includes(r.status)) return false
+        if (!r.check_in || !r.check_out) return false
+        const checkIn = startOfDay(parseISO(r.check_in))
+        const checkOut = startOfDay(parseISO(r.check_out))
+        return day >= checkIn && day < checkOut
+      })
+      if (isOccupied) occupiedDaysCount++
+    })
+
+    const occupancyRate = (occupiedDaysCount / daysInMonth) * 100
+
     const currentMonthReservations = allReservations.filter(r => {
       if (!r.check_in) return false
       return isSameMonth(parseISO(r.check_in), start) && ['confirmed', 'reserved'].includes(r.status)
@@ -91,6 +113,8 @@ export default function Dashboard() {
       monthlyExpenses,
       monthlyProfit: monthlyRevenue - monthlyExpenses,
       monthlyBookingCount: currentMonthReservations.length,
+      occupiedNightsCount: occupiedDaysCount,
+      occupancyRate,
       overallRevenue,
       overallExpenses,
       overallProfit: overallRevenue - overallExpenses,
@@ -128,9 +152,16 @@ export default function Dashboard() {
           <div>
              <Calendar reservations={stats.reservations} />
           </div>
-          <div className="card">
-            <h3>Welcome, {user?.user_metadata?.full_name || user?.email}</h3>
-            <p>You have {stats.monthlyBookingCount} confirmed bookings in {format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy')}.</p>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+            <h3 style={{ marginTop: 0 }}>Welcome, {user?.user_metadata?.full_name || user?.email}</h3>
+            <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>
+              You have {stats.monthlyBookingCount} confirmed bookings occupying <strong>{stats.occupiedNightsCount} nights</strong> in {format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy')}.
+            </p>
+            
+            <CircularProgress percentage={stats.occupancyRate} primaryColor="var(--success)" />
+            <p style={{ marginTop: '1rem', marginBottom: 0, color: 'var(--text-muted)', fontWeight: 500 }}>
+              Occupancy Rate
+            </p>
           </div>
         </div>
 
