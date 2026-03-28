@@ -7,12 +7,19 @@ import { Database } from '../../lib/database.types'
 type Reservation = Database['public']['Tables']['reservations']['Row']
 type NewReservation = Database['public']['Tables']['reservations']['Insert']
 
+const getLocalToday = () => {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().split('T')[0]
+}
+
 export default function Reservations() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [pax, setPax] = useState<number>(2)
+  const [activeTab, setActiveTab] = useState<'incoming' | 'done' | 'cancelled'>('incoming')
   const [formData, setFormData] = useState<Omit<NewReservation, 'id' | 'created_at' | 'user_id'>>({
     guest_name: '',
     check_in: '',
@@ -23,7 +30,24 @@ export default function Reservations() {
   })
 
   // Get today's date in YYYY-MM-DD format for min attribute
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalToday()
+
+  const incomingReservations = reservations
+    .filter(res => res.status !== 'cancelled' && res.check_out >= today)
+    .sort((a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()) // Closest first
+
+  const doneReservations = reservations
+    .filter(res => res.status !== 'cancelled' && res.check_out < today)
+    .sort((a, b) => new Date(b.check_in).getTime() - new Date(a.check_in).getTime()) // Most recent past first
+    
+  const cancelledReservations = reservations
+    .filter(res => res.status === 'cancelled')
+    .sort((a, b) => new Date(b.check_in).getTime() - new Date(a.check_in).getTime()) // Most recent first
+  
+  const displayedReservations = 
+    activeTab === 'incoming' ? incomingReservations : 
+    activeTab === 'done' ? doneReservations : 
+    cancelledReservations
 
   useEffect(() => {
     fetchReservations()
@@ -53,7 +77,7 @@ export default function Reservations() {
       if (!user) throw new Error('No user')
 
       // Validate dates
-      const today = new Date().toISOString().split('T')[0]
+      const today = getLocalToday()
       if (formData.check_in < today) {
         throw new Error('Check-in date cannot be in the past')
       }
@@ -160,6 +184,38 @@ export default function Reservations() {
     })
   }
 
+  const handleExportCSV = () => {
+    if (displayedReservations.length === 0) return
+
+    const headers = ['Guest Name', 'Check In', 'Check Out', 'Total Price', 'Status', 'Notes']
+    
+    const csvRows = [headers.join(',')]
+    
+    displayedReservations.forEach(res => {
+      const row = [
+        `"${(res.guest_name || '').replace(/"/g, '""')}"`,
+        `"${res.check_in || ''}"`,
+        `"${res.check_out || ''}"`,
+        res.total_price || 0,
+        `"${res.status || ''}"`,
+        `"${(res.notes || '').replace(/"/g, '""')}"`
+      ]
+      csvRows.push(row.join(','))
+    })
+    
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `${activeTab}_reservations_export_${getLocalToday()}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const handlePaxChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const newPax = Number(e.target.value)
     setPax(newPax)
@@ -184,16 +240,26 @@ export default function Reservations() {
       <div>
         <div className="page-header">
           <h1>Reservations</h1>
-          <button className="btn-primary" onClick={() => {
-            setShowForm(!showForm)
-            if (showForm) {
-              setEditingId(null)
-              setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 2500, status: 'confirmed', notes: '' })
-              setPax(2)
-            }
-          }}>
-            {showForm ? 'Cancel' : '+ New Reservation'}
-          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              className="btn-primary" 
+              onClick={handleExportCSV} 
+              disabled={displayedReservations.length === 0 || loading}
+              style={{ backgroundColor: 'var(--success-color, #10b981)', borderColor: 'var(--success-color, #10b981)' }}
+            >
+              Export CSV
+            </button>
+            <button className="btn-primary" onClick={() => {
+              setShowForm(!showForm)
+              if (showForm) {
+                setEditingId(null)
+                setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 2500, status: 'confirmed', notes: '' })
+                setPax(2)
+              }
+            }}>
+              {showForm ? 'Cancel' : '+ New Reservation'}
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -228,21 +294,72 @@ export default function Reservations() {
         )}
 
         {loading ? <p>Loading...</p> : (
-          <div className="card table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Guest</th>
-                  <th>Dates</th>
-                  <th>Status</th>
-                  <th>Price</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reservations.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center' }}>No reservations found.</td></tr>
-                ) : reservations.map(res => (
+          <>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
+              <button 
+                onClick={() => setActiveTab('incoming')}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  fontSize: '1rem', 
+                  fontWeight: activeTab === 'incoming' ? '600' : '400',
+                  color: activeTab === 'incoming' ? 'var(--primary-color, #4f46e5)' : 'var(--text-muted, #64748b)',
+                  borderBottom: activeTab === 'incoming' ? '2px solid var(--primary-color, #4f46e5)' : '2px solid transparent',
+                  padding: '0.5rem 0',
+                  cursor: 'pointer',
+                  marginBottom: '-1px'
+                }}
+              >
+                Incoming ({incomingReservations.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('done')}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  fontSize: '1rem', 
+                  fontWeight: activeTab === 'done' ? '600' : '400',
+                  color: activeTab === 'done' ? 'var(--primary-color, #4f46e5)' : 'var(--text-muted, #64748b)',
+                  borderBottom: activeTab === 'done' ? '2px solid var(--primary-color, #4f46e5)' : '2px solid transparent',
+                  padding: '0.5rem 0',
+                  cursor: 'pointer',
+                  marginBottom: '-1px'
+                }}
+              >
+                Done ({doneReservations.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('cancelled')}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  fontSize: '1rem', 
+                  fontWeight: activeTab === 'cancelled' ? '600' : '400',
+                  color: activeTab === 'cancelled' ? 'var(--primary-color, #4f46e5)' : 'var(--text-muted, #64748b)',
+                  borderBottom: activeTab === 'cancelled' ? '2px solid var(--primary-color, #4f46e5)' : '2px solid transparent',
+                  padding: '0.5rem 0',
+                  cursor: 'pointer',
+                  marginBottom: '-1px'
+                }}
+              >
+                Cancelled ({cancelledReservations.length})
+              </button>
+            </div>
+            <div className="card table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Guest</th>
+                    <th>Dates</th>
+                    <th>Status</th>
+                    <th>Price</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedReservations.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center' }}>No {activeTab} reservations found.</td></tr>
+                  ) : displayedReservations.map(res => (
                   <tr key={res.id}>
                     <td>
                       <div style={{ fontWeight: '500' }}>{res.guest_name}</div>
@@ -267,6 +384,7 @@ export default function Reservations() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </AuthGuard>
