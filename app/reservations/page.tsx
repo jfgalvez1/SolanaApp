@@ -76,13 +76,15 @@ export default function Reservations() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user')
 
-      // Validate dates
-      const today = getLocalToday()
-      if (formData.check_in < today) {
-        throw new Error('Check-in date cannot be in the past')
-      }
-      if (formData.check_out < formData.check_in) {
-        throw new Error('Check-out date must be after check-in date')
+      // Validate dates only for new reservations
+      if (!editingId) {
+        const today = getLocalToday()
+        if (formData.check_in < today) {
+          throw new Error('Check-in date cannot be in the past')
+        }
+        if (formData.check_out < formData.check_in) {
+          throw new Error('Check-out date must be after check-in date')
+        }
       }
 
       const newReservation: NewReservation = {
@@ -268,8 +270,8 @@ export default function Reservations() {
             <form onSubmit={handleCreate}>
               <div className="grid-3">
                 <input name="guest_name" placeholder="Guest Name" value={formData.guest_name} onChange={handleChange} className="input-field" required />
-                <input name="check_in" type="date" min={today} placeholder="Check In" value={formData.check_in} onChange={handleChange} className="input-field" required />
-                <input name="check_out" type="date" min={formData.check_in || today} placeholder="Check Out" value={formData.check_out} onChange={handleChange} className="input-field" required />
+                <input name="check_in" type="date" min={editingId ? undefined : today} placeholder="Check In" value={formData.check_in} onChange={handleChange} className="input-field" required />
+                <input name="check_out" type="date" min={editingId ? undefined : (formData.check_in || today)} placeholder="Check Out" value={formData.check_out} onChange={handleChange} className="input-field" required />
                 <select name="pax" value={pax} onChange={handlePaxChange} className="input-field">
                   {[...Array(5)].map((_, i) => {
                     const n = i + 1;
