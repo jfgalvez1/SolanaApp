@@ -89,6 +89,7 @@ export default function Reservations() {
 
       const newReservation: NewReservation = {
         ...formData,
+        pax,
         user_id: user.id,
         status: formData.status as Database['public']['Tables']['reservations']['Row']['status']
       }
@@ -129,25 +130,7 @@ export default function Reservations() {
       status: reservation.status,
       notes: reservation.notes
     })
-    
-    let days = 1
-    if (reservation.check_in && reservation.check_out) {
-      const start = new Date(reservation.check_in)
-      const end = new Date(reservation.check_out)
-      const timeDiff = end.getTime() - start.getTime()
-      if (timeDiff > 0) {
-        days = Math.ceil(timeDiff / (1000 * 3600 * 24))
-      }
-    }
-    
-    let calculatedPax = 2
-    if (reservation.total_price) {
-      const basePrice = reservation.total_price / days
-      if (basePrice > 2500) {
-        calculatedPax = Math.min(5, 2 + Math.floor((basePrice - 2500) / 500))
-      }
-    }
-    setPax(calculatedPax)
+    setPax(reservation.pax ?? 2)
     setShowForm(true)
   }
 
@@ -189,7 +172,7 @@ export default function Reservations() {
   const handleExportCSV = () => {
     if (displayedReservations.length === 0) return
 
-    const headers = ['Guest Name', 'Check In', 'Check Out', 'Total Price', 'Status', 'Notes']
+    const headers = ['Guest Name', 'Check In', 'Check Out', 'Pax', 'Total Price', 'Status', 'Notes']
     
     const csvRows = [headers.join(',')]
     
@@ -198,6 +181,7 @@ export default function Reservations() {
         `"${(res.guest_name || '').replace(/"/g, '""')}"`,
         `"${res.check_in || ''}"`,
         `"${res.check_out || ''}"`,
+        res.pax ?? 2,
         res.total_price || 0,
         `"${res.status || ''}"`,
         `"${(res.notes || '').replace(/"/g, '""')}"`
@@ -353,6 +337,7 @@ export default function Reservations() {
                   <tr>
                     <th>Guest</th>
                     <th>Dates</th>
+                    <th>Pax</th>
                     <th>Status</th>
                     <th>Price</th>
                     <th>Actions</th>
@@ -360,7 +345,7 @@ export default function Reservations() {
                 </thead>
                 <tbody>
                   {displayedReservations.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center' }}>No {activeTab} reservations found.</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign: 'center' }}>No {activeTab} reservations found.</td></tr>
                   ) : displayedReservations.map(res => (
                   <tr key={res.id}>
                     <td>
@@ -372,6 +357,7 @@ export default function Reservations() {
                       <span style={{ color: 'var(--text-muted)', margin: '0 0.25rem' }}>to</span> 
                       {new Date(res.check_out).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })}
                     </td>
+                    <td style={{ textAlign: 'center' }}>{res.pax ?? 2}</td>
                     <td>
                       <span className={`status-badge status-${res.status}`}>
                         {res.status}

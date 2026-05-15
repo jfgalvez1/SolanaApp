@@ -150,7 +150,11 @@ export default function Dashboard() {
         
         <div className="dashboard-header">
           <div>
-             <Calendar reservations={stats.reservations} />
+             <Calendar
+               reservations={stats.reservations}
+               currentMonth={parseISO(`${selectedMonth}-01`)}
+               onMonthChange={(date) => setSelectedMonth(format(date, 'yyyy-MM'))}
+             />
           </div>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
             <h3 style={{ marginTop: 0 }}>Welcome, {user?.user_metadata?.full_name || user?.email}</h3>

@@ -100,6 +100,7 @@ export interface Database {
           guest_name: string
           check_in: string
           check_out: string
+          pax: number
           total_price: number
           status: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes: string | null
@@ -111,6 +112,7 @@ export interface Database {
           guest_name: string
           check_in: string
           check_out: string
+          pax?: number
           total_price: number
           status?: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes?: string | null
@@ -122,6 +124,7 @@ export interface Database {
           guest_name?: string
           check_in?: string
           check_out?: string
+          pax?: number
           total_price?: number
           status?: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes?: string | null

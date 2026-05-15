@@ -20,13 +20,25 @@ type Reservation = Database['public']['Tables']['reservations']['Row']
 
 interface CalendarProps {
   reservations: Reservation[]
+  currentMonth?: Date
+  onMonthChange?: (date: Date) => void
 }
 
-export default function Calendar({ reservations }: CalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange }: CalendarProps) {
+  const [internalMonth, setInternalMonth] = useState(new Date())
 
-  const onNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1))
-  const onPrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1))
+  const currentMonth = externalMonth ?? internalMonth
+
+  const onNextMonth = () => {
+    const next = addMonths(currentMonth, 1)
+    if (onMonthChange) onMonthChange(next)
+    else setInternalMonth(next)
+  }
+  const onPrevMonth = () => {
+    const prev = subMonths(currentMonth, 1)
+    if (onMonthChange) onMonthChange(prev)
+    else setInternalMonth(prev)
+  }
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(monthStart)
