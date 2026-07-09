@@ -13,6 +13,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          property_id: string
           description: string
           amount: number
           category: string
@@ -22,6 +23,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
+          property_id: string
           description: string
           amount: number
           category?: string
@@ -31,12 +33,14 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
+          property_id?: string
           description?: string
           amount?: number
           category?: string
           date?: string
           created_at?: string
         }
+        Relationships: []
       }
       inventory: {
         Row: {
@@ -66,6 +70,7 @@ export interface Database {
           stock?: number
           created_at?: string
         }
+        Relationships: []
       }
       sales_log: {
         Row: {
@@ -92,11 +97,21 @@ export interface Database {
           profit?: number
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'sales_log_inventory_id_fkey'
+            columns: ['inventory_id']
+            isOneToOne: false
+            referencedRelation: 'inventory'
+            referencedColumns: ['id']
+          }
+        ]
       }
       reservations: {
         Row: {
           id: string
           user_id: string
+          property_id: string
           guest_name: string
           check_in: string
           check_out: string
@@ -109,6 +124,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
+          property_id: string
           guest_name: string
           check_in: string
           check_out: string
@@ -121,6 +137,7 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
+          property_id?: string
           guest_name?: string
           check_in?: string
           check_out?: string
@@ -130,6 +147,43 @@ export interface Database {
           notes?: string | null
           created_at?: string
         }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          slug: string
+          base_price: number
+          included_pax: number
+          extra_pax_price: number
+          max_pax: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          slug: string
+          base_price?: number
+          included_pax?: number
+          extra_pax_price?: number
+          max_pax?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          slug?: string
+          base_price?: number
+          included_pax?: number
+          extra_pax_price?: number
+          max_pax?: number
+          created_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -153,6 +207,7 @@ export interface Database {
           safety_code?: string | null
           updated_at?: string | null
         }
+        Relationships: []
       }
     }
     Views: {

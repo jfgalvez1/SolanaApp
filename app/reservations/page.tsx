@@ -2,7 +2,9 @@
 import { useEffect, useState, FormEvent, ChangeEvent } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import AuthGuard from '../../components/AuthGuard'
+import { useProperty } from '../../components/PropertyProvider'
 import { Database } from '../../lib/database.types'
+import { calculateTotalPrice, extraPaxLabel } from '../../lib/pricing'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 type NewReservation = Database['public']['Tables']['reservations']['Insert']
@@ -14,13 +16,14 @@ const getLocalToday = () => {
 }
 
 export default function Reservations() {
+  const { currentProperty } = useProperty()
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [pax, setPax] = useState<number>(2)
   const [activeTab, setActiveTab] = useState<'incoming' | 'done' | 'cancelled'>('incoming')
-  const [formData, setFormData] = useState<Omit<NewReservation, 'id' | 'created_at' | 'user_id'>>({
+  const [formData, setFormData] = useState<Omit<NewReservation, 'id' | 'created_at' | 'user_id' | 'property_id'>>({
     guest_name: '',
     check_in: '',
     check_out: '',
@@ -29,8 +32,21 @@ export default function Reservations() {
     notes: ''
   })
 
-  // Get today's date in YYYY-MM-DD format for min attribute
   const today = getLocalToday()
+
+  const defaultTotalPrice = currentProperty?.base_price ?? 2500
+
+  const resetForm = () => {
+    setFormData({
+      guest_name: '',
+      check_in: '',
+      check_out: '',
+      total_price: defaultTotalPrice,
+      status: 'confirmed',
+      notes: ''
+    })
+    setPax(currentProperty?.included_pax ?? 2)
+  }
 
   const incomingReservations = reservations
     .filter(res => res.status !== 'cancelled' && res.check_out >= today)
@@ -50,15 +66,19 @@ export default function Reservations() {
     cancelledReservations
 
   useEffect(() => {
-    fetchReservations()
-  }, [])
+    if (currentProperty) {
+      fetchReservations()
+    }
+  }, [currentProperty])
 
   const fetchReservations = async () => {
+    if (!currentProperty) return
     try {
       setLoading(true)
       const { data, error } = await supabase
         .from('reservations')
         .select('*')
+        .eq('property_id', currentProperty.id)
         .order('check_in', { ascending: false })
       
       if (error) throw error
@@ -72,6 +92,7 @@ export default function Reservations() {
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
+    if (!currentProperty) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user')
@@ -91,18 +112,19 @@ export default function Reservations() {
         ...formData,
         pax,
         user_id: user.id,
+        property_id: currentProperty.id,
         status: formData.status as Database['public']['Tables']['reservations']['Row']['status']
       }
 
       let error
       if (editingId) {
-        const { error: updateError } = await (supabase as any)
+        const { error: updateError } = await supabase
           .from('reservations')
           .update(newReservation)
           .eq('id', editingId)
         error = updateError
       } else {
-        const { error: insertError } = await (supabase as any)
+        const { error: insertError } = await supabase
           .from('reservations')
           .insert([newReservation])
         error = insertError
@@ -112,8 +134,7 @@ export default function Reservations() {
       
       setShowForm(false)
       setEditingId(null)
-      setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 2500, status: 'confirmed', notes: '' })
-      setPax(2)
+      resetForm()
       fetchReservations()
     } catch (error: any) {
       alert('Error saving reservation: ' + error.message)
@@ -156,13 +177,8 @@ export default function Reservations() {
         const startStr = name === 'check_in' ? value as string : prev.check_in
         const endStr = name === 'check_out' ? value as string : prev.check_out
         
-        if (startStr && endStr) {
-          const start = new Date(startStr)
-          const end = new Date(endStr)
-          const timeDiff = end.getTime() - start.getTime()
-          const days = timeDiff > 0 ? Math.ceil(timeDiff / (1000 * 3600 * 24)) : 1
-          const basePrice = 2500 + (pax > 2 ? (pax - 2) * 500 : 0)
-          newData.total_price = basePrice * days
+        if (startStr && endStr && currentProperty) {
+          newData.total_price = calculateTotalPrice(startStr, endStr, pax, currentProperty)
         }
       }
       return newData
@@ -207,17 +223,16 @@ export default function Reservations() {
     setPax(newPax)
     
     setFormData(prev => {
-      let days = 1
-      if (prev.check_in && prev.check_out) {
-        const start = new Date(prev.check_in)
-        const end = new Date(prev.check_out)
-        const timeDiff = end.getTime() - start.getTime()
-        if (timeDiff > 0) {
-          days = Math.ceil(timeDiff / (1000 * 3600 * 24))
+      if (prev.check_in && prev.check_out && currentProperty) {
+        return {
+          ...prev,
+          total_price: calculateTotalPrice(prev.check_in, prev.check_out, newPax, currentProperty)
         }
       }
-      const basePrice = 2500 + (newPax > 2 ? (newPax - 2) * 500 : 0)
-      return { ...prev, total_price: basePrice * days }
+      if (currentProperty) {
+        return { ...prev, total_price: calculateTotalPrice(prev.check_in || today, prev.check_out || today, newPax, currentProperty) }
+      }
+      return prev
     })
   }
 
@@ -225,7 +240,7 @@ export default function Reservations() {
     <AuthGuard>
       <div>
         <div className="page-header">
-          <h1>Reservations</h1>
+          <h1>Reservations{currentProperty ? ` — ${currentProperty.name}` : ''}</h1>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button 
               className="btn-primary" 
@@ -239,8 +254,7 @@ export default function Reservations() {
               setShowForm(!showForm)
               if (showForm) {
                 setEditingId(null)
-                setFormData({ guest_name: '', check_in: '', check_out: '', total_price: 2500, status: 'confirmed', notes: '' })
-                setPax(2)
+                resetForm()
               }
             }}>
               {showForm ? 'Cancel' : '+ New Reservation'}
@@ -257,11 +271,11 @@ export default function Reservations() {
                 <input name="check_in" type="date" min={editingId ? undefined : today} placeholder="Check In" value={formData.check_in} onChange={handleChange} className="input-field" required />
                 <input name="check_out" type="date" min={editingId ? undefined : (formData.check_in || today)} placeholder="Check Out" value={formData.check_out} onChange={handleChange} className="input-field" required />
                 <select name="pax" value={pax} onChange={handlePaxChange} className="input-field">
-                  {[...Array(5)].map((_, i) => {
+                  {[...Array(currentProperty?.max_pax ?? 5)].map((_, i) => {
                     const n = i + 1;
                     return (
                       <option key={n} value={n}>
-                        {n} Pax {n > 2 ? `(+₱${(n - 2) * 500})` : ''}
+                        {n} Pax {currentProperty ? extraPaxLabel(n, currentProperty) : ''}
                       </option>
                     );
                   })}

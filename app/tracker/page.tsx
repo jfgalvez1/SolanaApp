@@ -92,14 +92,14 @@ export default function Tracker() {
       if (editingInvId) {
         const { error } = await supabase
           .from('inventory')
-          // @ts-expect-error - Expected type mismatch due to Supabase type generation generic inference failing
+
           .update(updatePayload)
           .eq('id', editingInvId)
         if (error) throw error
       } else {
         const { error } = await supabase
           .from('inventory')
-          // @ts-expect-error - Expected type mismatch
+
           .insert([insertPayload])
         if (error) throw error
       }
@@ -166,7 +166,7 @@ export default function Tracker() {
         
         const { error: saleEditError } = await supabase
           .from('sales_log')
-          // @ts-expect-error - Expected type mismatch
+
           .update(saleUpdatePayload)
           .eq('id', editingSaleId)
           
@@ -179,7 +179,7 @@ export default function Tracker() {
         
         const { error: invEditError } = await supabase
           .from('inventory')
-          // @ts-expect-error - Expected type mismatch
+
           .update(invUpdatePayload)
           .eq('id', selectedProduct.id)
           
@@ -200,7 +200,7 @@ export default function Tracker() {
         
         const { error: saleError } = await supabase
           .from('sales_log')
-          // @ts-expect-error - Expected type mismatch
+
           .insert([salePayload])
         
         if (saleError) throw saleError
@@ -211,7 +211,7 @@ export default function Tracker() {
         
         const { error: updateError } = await supabase
           .from('inventory')
-          // @ts-expect-error - Expected type mismatch
+
           .update(updatePayload)
           .eq('id', selectedProduct.id)
 
@@ -257,7 +257,7 @@ export default function Tracker() {
         const returnPayload = { stock: currentInvData.stock + sale.quantity_sold }
         const { error: invError } = await supabase
           .from('inventory')
-          // @ts-expect-error - expected mismatch
+
           .update(returnPayload)
           .eq('id', sale.inventory_id)
           

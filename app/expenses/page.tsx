@@ -2,17 +2,19 @@
 import { useEffect, useState, FormEvent, ChangeEvent } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import AuthGuard from '../../components/AuthGuard'
+import { useProperty } from '../../components/PropertyProvider'
 import { Database } from '../../lib/database.types'
 
 type Expense = Database['public']['Tables']['expenses']['Row']
 type NewExpense = Database['public']['Tables']['expenses']['Insert']
 
 export default function Expenses() {
+  const { currentProperty } = useProperty()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formData, setFormData] = useState<Omit<NewExpense, 'id' | 'created_at' | 'user_id'>>({
+  const [formData, setFormData] = useState<Omit<NewExpense, 'id' | 'created_at' | 'user_id' | 'property_id'>>({
     description: '',
     amount: 0,
     category: 'other',
@@ -20,15 +22,19 @@ export default function Expenses() {
   })
 
   useEffect(() => {
-    fetchExpenses()
-  }, [])
+    if (currentProperty) {
+      fetchExpenses()
+    }
+  }, [currentProperty])
 
   const fetchExpenses = async () => {
+    if (!currentProperty) return
     try {
       setLoading(true)
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
+        .eq('property_id', currentProperty.id)
         .order('date', { ascending: false })
       
       if (error) throw error
@@ -42,24 +48,26 @@ export default function Expenses() {
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
+    if (!currentProperty) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user')
 
       const newExpense: NewExpense = {
         ...formData,
-        user_id: user.id
+        user_id: user.id,
+        property_id: currentProperty.id
       }
 
       let error
       if (editingId) {
-        const { error: updateError } = await (supabase as any)
+        const { error: updateError } = await supabase
           .from('expenses')
           .update(newExpense)
           .eq('id', editingId)
         error = updateError
       } else {
-        const { error: insertError } = await (supabase as any)
+        const { error: insertError } = await supabase
           .from('expenses')
           .insert([newExpense])
         error = insertError
@@ -107,7 +115,7 @@ export default function Expenses() {
     <AuthGuard>
       <div>
         <div className="page-header">
-          <h1>Expenses</h1>
+          <h1>Expenses{currentProperty ? ` — ${currentProperty.name}` : ''}</h1>
           <button className="btn-primary" onClick={() => {
             setShowForm(!showForm)
             if (showForm) {

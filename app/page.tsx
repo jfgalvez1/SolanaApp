@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../components/AuthProvider'
+import { useProperty } from '../components/PropertyProvider'
 import AuthGuard from '../components/AuthGuard'
 import Calendar from '../components/Calendar'
 import CircularProgress from '../components/CircularProgress'
@@ -22,6 +23,7 @@ interface Stats {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { currentProperty } = useProperty()
   const [stats, setStats] = useState<Stats>({ 
     monthlyRevenue: 0, monthlyExpenses: 0, monthlyProfit: 0, monthlyBookingCount: 0, occupiedNightsCount: 0, occupancyRate: 0,
     overallRevenue: 0, overallExpenses: 0, overallProfit: 0,
@@ -33,28 +35,31 @@ export default function Dashboard() {
   const [allExpenses, setAllExpenses] = useState<any[]>([])
 
   useEffect(() => {
-    if (user) {
+    if (user && currentProperty) {
       fetchData()
     }
-  }, [user])
+  }, [user, currentProperty])
 
   useEffect(() => {
     calculateStats()
   }, [selectedMonth, allReservations, allExpenses])
 
   const fetchData = async () => {
+    if (!currentProperty) return
     try {
       setLoading(true)
       
       const { data: reservations, error: resError } = await supabase
         .from('reservations')
         .select('*')
+        .eq('property_id', currentProperty.id)
       
       if (resError) throw resError
 
       const { data: expenses, error: expError } = await supabase
         .from('expenses')
         .select('*')
+        .eq('property_id', currentProperty.id)
 
       if (expError) throw expError
 
@@ -132,7 +137,7 @@ export default function Dashboard() {
     <AuthGuard>
       <div>
         <div className="page-header month-selector-header">
-            <h1 style={{ marginBottom: 0 }}>Dashboard</h1>
+            <h1 style={{ marginBottom: 0 }}>Dashboard{currentProperty ? ` — ${currentProperty.name}` : ''}</h1>
             <div className="month-selector">
                 <label>Month:</label>
                 <select 
