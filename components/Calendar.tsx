@@ -11,10 +11,10 @@ import {
   isSameDay,
   addMonths,
   subMonths,
-  isWithinInterval,
   parseISO
 } from 'date-fns'
 import { Database } from '../lib/database.types'
+import { isOccupyingStatus } from '../lib/reservationOverlap'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 
@@ -50,13 +50,11 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate })
 
   const getReservationsForDay = (day: Date): Reservation[] => {
+    const dayIso = format(day, 'yyyy-MM-dd')
     return reservations.filter(res => {
-      if (!['confirmed', 'reserved'].includes(res.status)) return false
-      const checkIn = parseISO(res.check_in)
-      const checkOut = parseISO(res.check_out)
-      const adjustedEnd = new Date(checkOut)
-      adjustedEnd.setDate(adjustedEnd.getDate() - 1)
-      return isWithinInterval(day, { start: checkIn, end: adjustedEnd })
+      if (!isOccupyingStatus(res.status)) return false
+      // Occupied nights are [check_in, check_out). Checkout day is free.
+      return dayIso >= res.check_in && dayIso < res.check_out
     })
   }
 

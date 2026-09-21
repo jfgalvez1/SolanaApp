@@ -5,6 +5,11 @@ import AuthGuard from '../../components/AuthGuard'
 import { useProperty } from '../../components/PropertyProvider'
 import { Database } from '../../lib/database.types'
 import { calculateTotalPrice, extraPaxLabel } from '../../lib/pricing'
+import {
+  findOverlappingReservations,
+  formatOverlapError,
+  isOccupyingStatus
+} from '../../lib/reservationOverlap'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 type NewReservation = Database['public']['Tables']['reservations']['Insert']
@@ -105,6 +110,26 @@ export default function Reservations() {
         }
         if (formData.check_out < formData.check_in) {
           throw new Error('Check-out date must be after check-in date')
+        }
+      }
+
+      if (isOccupyingStatus(formData.status)) {
+        let conflictQuery = supabase
+          .from('reservations')
+          .select('id, guest_name, check_in, check_out, status')
+          .eq('property_id', currentProperty.id)
+          .in('status', ['confirmed', 'reserved'])
+          .lt('check_in', formData.check_out)
+          .gt('check_out', formData.check_in)
+
+        if (editingId) {
+          conflictQuery = conflictQuery.neq('id', editingId)
+        }
+
+        const { data: conflicts, error: conflictError } = await conflictQuery
+        if (conflictError) throw conflictError
+        if (conflicts && conflicts.length > 0) {
+          throw new Error(formatOverlapError(conflicts))
         }
       }
 
@@ -218,6 +243,15 @@ export default function Reservations() {
     document.body.removeChild(link)
   }
 
+  const dateConflict = isOccupyingStatus(formData.status)
+    ? findOverlappingReservations(
+        reservations,
+        formData.check_in,
+        formData.check_out,
+        editingId
+      )[0]
+    : undefined
+
   const handlePaxChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const newPax = Number(e.target.value)
     setPax(newPax)
@@ -288,7 +322,19 @@ export default function Reservations() {
                 </select>
                 <input name="notes" placeholder="Notes (Optional)" value={formData.notes || ''} onChange={handleChange} className="input-field" />
               </div>
-              <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>{editingId ? 'Update' : 'Save'} Reservation</button>
+              {dateConflict && (
+                <p style={{ color: 'var(--danger)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
+                  {formatOverlapError([dateConflict])}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ marginTop: '1rem' }}
+                disabled={!!dateConflict}
+              >
+                {editingId ? 'Update' : 'Save'} Reservation
+              </button>
             </form>
           </div>
         )}
