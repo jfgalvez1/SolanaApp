@@ -435,26 +435,16 @@ export default function BookingRequestsPage() {
                         </td>
                         <td>
                           {req.status === 'pending' ? (
-                            <>
-                              <button
-                                className="btn-primary"
-                                style={{
-                                  marginRight: '0.5rem',
-                                  padding: '0.25rem 0.5rem',
-                                  fontSize: '0.875rem',
-                                }}
-                                onClick={() => openReview(req)}
-                              >
-                                Review
-                              </button>
-                              <button
-                                className="btn-danger"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
-                                onClick={() => handleReject(req)}
-                              >
-                                Reject
-                              </button>
-                            </>
+                            <button
+                              className="btn-primary"
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.875rem',
+                              }}
+                              onClick={() => openReview(req)}
+                            >
+                              Review
+                            </button>
                           ) : (
                             <span className={`status-badge status-${req.status === 'approved' ? 'confirmed' : 'cancelled'}`}>
                               {req.status}
