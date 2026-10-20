@@ -30,6 +30,11 @@ Open `001_multi_villa.sql` and run each step in order:
 
 > **Note:** If you already have RLS policies on `reservations` or `expenses`, you may need to drop the old policies first to avoid conflicts. Check Supabase → Authentication → Policies.
 
+## Booking requests (Google Form inbox)
+
+After multi-villa is live, run `002_booking_requests.sql` in the SQL Editor.  
+Form submissions go to **Booking Requests** until you approve them into Reservations.
+
 ## Phase 2: Deploy app
 
 Deploy the updated app only after Step 6 passes.

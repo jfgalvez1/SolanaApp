@@ -17,12 +17,6 @@ function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
 }
 
-function getLocalToday(): string {
-  const d = new Date()
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-  return d.toISOString().split('T')[0]
-}
-
 export async function POST(request: NextRequest) {
   try {
     const expectedSecret = process.env.BOOKING_WEBHOOK_SECRET
@@ -98,21 +92,21 @@ export async function POST(request: NextRequest) {
     if (existingError) throw existingError
 
     const conflicts = findOverlappingReservations(existing || [], checkIn, checkOut)
-    const notes = conflicts.length
-      ? `Imported from Google Form. Warning: overlaps ${conflicts
+    const overlapWarning = conflicts.length
+      ? `Overlaps ${conflicts
           .map(c => `${c.guest_name} (${c.check_in}–${c.check_out})`)
           .join('; ')}`
-      : 'Imported from Google Form'
+      : null
 
-    const totalPrice = calculateTotalPrice(
+    const suggestedPrice = calculateTotalPrice(
       checkIn,
       checkOut,
       pax,
       property as Property
     )
 
-    const { data: reservation, error: insertError } = await admin
-      .from('reservations')
+    const { data: bookingRequest, error: insertError } = await admin
+      .from('booking_requests')
       .insert([
         {
           user_id: property.user_id,
@@ -121,21 +115,23 @@ export async function POST(request: NextRequest) {
           check_in: checkIn,
           check_out: checkOut,
           pax,
-          total_price: totalPrice,
-          status: 'reserved',
-          notes,
+          suggested_price: suggestedPrice,
+          status: 'pending',
+          overlap_warning: overlapWarning,
+          notes: 'Submitted via Google Form',
         },
       ])
-      .select('id, guest_name, check_in, check_out, pax, total_price, status, notes')
+      .select(
+        'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning'
+      )
       .single()
 
     if (insertError) throw insertError
 
     return NextResponse.json({
       ok: true,
-      reservation,
-      overlap_warning: conflicts.length > 0,
-      received_on: getLocalToday(),
+      booking_request: bookingRequest,
+      overlap_warning: Boolean(overlapWarning),
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'

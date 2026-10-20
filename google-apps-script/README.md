@@ -1,6 +1,6 @@
 # Google Form → Reservation sync
 
-Keeps your existing Google Form. When a guest submits, Apps Script posts **guest name, check-in, check-out, and pax** into the app as a `reserved` booking.
+Keeps your existing Google Form. When a guest submits, Apps Script posts **guest name, check-in, check-out, and pax** into the app as a **pending booking request**. Nothing is added to Reservations until you approve it on the **Booking Requests** page.
 
 ## 1. App env
 
@@ -43,8 +43,12 @@ These Form question titles must match exactly (or edit `QUESTION` in the script)
 | Please select your check-in date: | `check_in` |
 | Please select your check-out date: | `check_out` |
 
-## 4. Test
+## 4. Database (one-time)
 
-Submit a test response on the Form. In the app (logged in), open **Reservations** — you should see a new **reserved** row with price calculated from the villa’s rates.
+In Supabase → SQL Editor, run `supabase/migrations/002_booking_requests.sql`.
 
-If dates overlap an existing booking, the reservation is still created and `notes` includes an overlap warning.
+## 5. Test
+
+Submit a test response on the Form. In the app, open **Booking Requests** — you should see a new **pending** row. Review → edit if needed → **Approve** (creates a reservation) or **Reject**.
+
+If dates overlap an existing booking, the request still appears with an overlap warning; approve is blocked until you change the dates.

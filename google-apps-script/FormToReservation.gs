@@ -1,15 +1,17 @@
 /**
- * Paste this into the Google Sheet linked to your Form:
- * Extensions → Apps Script
+ * Paste into Apps Script on either:
+ *   - the Google Form, or
+ *   - the linked response Sheet
  *
- * Then: Triggers (clock icon) → Add Trigger
+ * Trigger → Add Trigger:
  *   Function: onFormSubmit
- *   Event source: From spreadsheet
+ *   Event source: From form  (if script is on the Form)
+ *              OR From spreadsheet (if script is on the Sheet)
  *   Event type: On form submit
  *
  * Script Properties (Project Settings → Script properties):
  *   WEBHOOK_URL     = https://YOUR_DOMAIN/api/bookings/from-form
- *   WEBHOOK_SECRET  = same value as BOOKING_WEBHOOK_SECRET in .env.local
+ *   WEBHOOK_SECRET  = same value as BOOKING_WEBHOOK_SECRET
  *   PROPERTY_SLUG   = villa-1   (optional; defaults to villa-1)
  *
  * Form question titles must match EXACTLY (or edit the keys below):
@@ -36,18 +38,13 @@ function onFormSubmit(e) {
     throw new Error('Set WEBHOOK_URL and WEBHOOK_SECRET in Script properties');
   }
 
-  var named = e.namedValues;
-  var guestName = firstValue(named[QUESTION.guestName]);
-  var paxRaw = firstValue(named[QUESTION.pax]);
-  var checkInRaw = firstValue(named[QUESTION.checkIn]);
-  var checkOutRaw = firstValue(named[QUESTION.checkOut]);
-
+  var answers = readAnswers(e);
   var payload = {
     property_slug: propertySlug,
-    guest_name: guestName,
-    pax: parseInt(String(paxRaw).replace(/[^\d]/g, ''), 10),
-    check_in: toIsoDate(checkInRaw),
-    check_out: toIsoDate(checkOutRaw),
+    guest_name: answers.guestName,
+    pax: parseInt(String(answers.pax).replace(/[^\d]/g, ''), 10),
+    check_in: toIsoDate(answers.checkIn),
+    check_out: toIsoDate(answers.checkOut),
   };
 
   var response = UrlFetchApp.fetch(webhookUrl, {
@@ -68,6 +65,34 @@ function onFormSubmit(e) {
   }
 
   console.log('Reservation created', body);
+}
+
+/** Supports Form-bound (e.response) and Sheet-bound (e.namedValues) triggers */
+function readAnswers(e) {
+  if (e && e.namedValues) {
+    return {
+      guestName: firstValue(e.namedValues[QUESTION.guestName]),
+      pax: firstValue(e.namedValues[QUESTION.pax]),
+      checkIn: firstValue(e.namedValues[QUESTION.checkIn]),
+      checkOut: firstValue(e.namedValues[QUESTION.checkOut]),
+    };
+  }
+
+  if (e && e.response) {
+    var map = {};
+    var items = e.response.getItemResponses();
+    for (var i = 0; i < items.length; i++) {
+      map[items[i].getItem().getTitle()] = String(items[i].getResponse()).trim();
+    }
+    return {
+      guestName: map[QUESTION.guestName] || '',
+      pax: map[QUESTION.pax] || '',
+      checkIn: map[QUESTION.checkIn] || '',
+      checkOut: map[QUESTION.checkOut] || '',
+    };
+  }
+
+  throw new Error('Unsupported form submit event. Use On form submit trigger.');
 }
 
 function firstValue(values) {

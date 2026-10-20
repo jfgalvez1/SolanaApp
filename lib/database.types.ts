@@ -149,6 +149,57 @@ export interface Database {
         }
         Relationships: []
       }
+      booking_requests: {
+        Row: {
+          id: string
+          user_id: string
+          property_id: string
+          guest_name: string
+          check_in: string
+          check_out: string
+          pax: number
+          suggested_price: number
+          status: 'pending' | 'approved' | 'rejected'
+          overlap_warning: string | null
+          notes: string | null
+          reservation_id: string | null
+          created_at: string
+          reviewed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          property_id: string
+          guest_name: string
+          check_in: string
+          check_out: string
+          pax?: number
+          suggested_price?: number
+          status?: 'pending' | 'approved' | 'rejected'
+          overlap_warning?: string | null
+          notes?: string | null
+          reservation_id?: string | null
+          created_at?: string
+          reviewed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          property_id?: string
+          guest_name?: string
+          check_in?: string
+          check_out?: string
+          pax?: number
+          suggested_price?: number
+          status?: 'pending' | 'approved' | 'rejected'
+          overlap_warning?: string | null
+          notes?: string | null
+          reservation_id?: string | null
+          created_at?: string
+          reviewed_at?: string | null
+        }
+        Relationships: []
+      }
       properties: {
         Row: {
           id: string
