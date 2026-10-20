@@ -48,6 +48,7 @@ const Navbar = () => {
         <Link href="/bitcoin-reserve" className={`nav-link ${pathname === '/bitcoin-reserve' ? 'active' : ''}`}>Bitcoin Reserve</Link>
         <Link href="/safety-lock" className={`nav-link ${pathname === '/safety-lock' ? 'active' : ''}`}>Safety Lock</Link>
         <Link href="/tracker" className={`nav-link ${pathname === '/tracker' ? 'active' : ''}`}>Tracker</Link>
+        <Link href="/profile" className={`nav-link ${pathname === '/profile' ? 'active' : ''}`}>Profile</Link>
       </div>
       <button onClick={signOut} className="btn-primary" style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
         Sign Out

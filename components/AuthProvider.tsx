@@ -10,6 +10,8 @@ interface AuthContextType {
   loading: boolean
   signIn: (email: string, password: string) => Promise<any>
   signUp: (email: string, password: string, fullName: string) => Promise<any>
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<{ error: Error | null }>
+  updateFullName: (fullName: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<any>
 }
 
@@ -58,12 +60,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     })
   }
 
+  const updatePassword = async (currentPassword: string, newPassword: string) => {
+    const email = user?.email
+    if (!email) {
+      return { error: new Error('Not signed in') }
+    }
+
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    })
+    if (reauthError) {
+      return { error: new Error('Current password is incorrect') }
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error: error ? new Error(error.message) : null }
+  }
+
+  const updateFullName = async (fullName: string) => {
+    const { error } = await supabase.auth.updateUser({
+      data: { full_name: fullName },
+    })
+    return { error: error ? new Error(error.message) : null }
+  }
+
   const signOut = () => {
     return supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, signUp, signIn, updatePassword, updateFullName, signOut, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   )
