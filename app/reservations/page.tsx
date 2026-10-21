@@ -34,7 +34,8 @@ export default function Reservations() {
     check_out: '',
     total_price: 2500,
     status: 'confirmed',
-    notes: ''
+    notes: '',
+    contact_number: ''
   })
 
   const today = getLocalToday()
@@ -48,7 +49,8 @@ export default function Reservations() {
       check_out: '',
       total_price: defaultTotalPrice,
       status: 'confirmed',
-      notes: ''
+      notes: '',
+      contact_number: ''
     })
     setPax(currentProperty?.included_pax ?? 2)
   }
@@ -136,6 +138,7 @@ export default function Reservations() {
       const newReservation: NewReservation = {
         ...formData,
         pax,
+        contact_number: (formData.contact_number || '').trim() || null,
         user_id: user.id,
         property_id: currentProperty.id,
         status: formData.status as Database['public']['Tables']['reservations']['Row']['status']
@@ -174,7 +177,8 @@ export default function Reservations() {
       check_out: reservation.check_out,
       total_price: reservation.total_price,
       status: reservation.status,
-      notes: reservation.notes
+      notes: reservation.notes,
+      contact_number: reservation.contact_number || ''
     })
     setPax(reservation.pax ?? 2)
     setShowForm(true)
@@ -213,13 +217,14 @@ export default function Reservations() {
   const handleExportCSV = () => {
     if (displayedReservations.length === 0) return
 
-    const headers = ['Guest Name', 'Check In', 'Check Out', 'Pax', 'Total Price', 'Status', 'Notes']
+    const headers = ['Guest Name', 'Contact Number', 'Check In', 'Check Out', 'Pax', 'Total Price', 'Status', 'Notes']
     
     const csvRows = [headers.join(',')]
     
     displayedReservations.forEach(res => {
       const row = [
         `"${(res.guest_name || '').replace(/"/g, '""')}"`,
+        `"${(res.contact_number || '').replace(/"/g, '""')}"`,
         `"${res.check_in || ''}"`,
         `"${res.check_out || ''}"`,
         res.pax ?? 2,
@@ -321,6 +326,7 @@ export default function Reservations() {
                   <option value="cancelled">Cancelled</option>
                 </select>
                 <input name="notes" placeholder="Notes (Optional)" value={formData.notes || ''} onChange={handleChange} className="input-field" />
+                <input name="contact_number" type="tel" inputMode="tel" placeholder="Contact Number (Optional)" value={formData.contact_number || ''} onChange={handleChange} className="input-field" maxLength={40} />
               </div>
               {dateConflict && (
                 <p style={{ color: 'var(--danger)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
@@ -410,6 +416,9 @@ export default function Reservations() {
                   <tr key={res.id}>
                     <td>
                       <div style={{ fontWeight: '500' }}>{res.guest_name}</div>
+                      {res.contact_number && (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.contact_number}</div>
+                      )}
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.notes}</div>
                     </td>
                     <td>

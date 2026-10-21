@@ -19,6 +19,7 @@
  *   Number of Guest that will stay*
  *   Please select your check-in date:
  *   Please select your check-out date:
+ *   Contact number          (optional)
  */
 
 var QUESTION = {
@@ -26,6 +27,7 @@ var QUESTION = {
   pax: 'Number of Guest that will stay*',
   checkIn: 'Please select your check-in date:',
   checkOut: 'Please select your check-out date:',
+  contactNumber: 'Contact number',
 };
 
 function onFormSubmit(e) {
@@ -45,6 +47,7 @@ function onFormSubmit(e) {
     pax: parseInt(String(answers.pax).replace(/[^\d]/g, ''), 10),
     check_in: toIsoDate(answers.checkIn),
     check_out: toIsoDate(answers.checkOut),
+    contact_number: answers.contactNumber,
   };
 
   var response = UrlFetchApp.fetch(webhookUrl, {
@@ -70,11 +73,17 @@ function onFormSubmit(e) {
 /** Supports Form-bound (e.response) and Sheet-bound (e.namedValues) triggers */
 function readAnswers(e) {
   if (e && e.namedValues) {
+    var named = {};
+    var namedKeys = Object.keys(e.namedValues);
+    for (var n = 0; n < namedKeys.length; n++) {
+      named[namedKeys[n]] = firstValue(e.namedValues[namedKeys[n]]);
+    }
     return {
-      guestName: firstValue(e.namedValues[QUESTION.guestName]),
-      pax: firstValue(e.namedValues[QUESTION.pax]),
-      checkIn: firstValue(e.namedValues[QUESTION.checkIn]),
-      checkOut: firstValue(e.namedValues[QUESTION.checkOut]),
+      guestName: named[QUESTION.guestName] || '',
+      pax: named[QUESTION.pax] || '',
+      checkIn: named[QUESTION.checkIn] || '',
+      checkOut: named[QUESTION.checkOut] || '',
+      contactNumber: findContactNumber(named),
     };
   }
 
@@ -89,6 +98,7 @@ function readAnswers(e) {
       pax: map[QUESTION.pax] || '',
       checkIn: map[QUESTION.checkIn] || '',
       checkOut: map[QUESTION.checkOut] || '',
+      contactNumber: findContactNumber(map),
     };
   }
 
@@ -98,6 +108,21 @@ function readAnswers(e) {
 function firstValue(values) {
   if (!values || !values.length) return '';
   return String(values[0]).trim();
+}
+
+/** Matches "Contact number", ignoring case and a trailing *. */
+function findContactNumber(map) {
+  var exact = map[QUESTION.contactNumber];
+  if (exact) return String(exact).trim();
+
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    var normalized = String(keys[i]).trim().toLowerCase().replace(/\*+$/, '').trim();
+    if (normalized === 'contact number' || normalized.indexOf('contact number') === 0) {
+      return String(map[keys[i]] || '').trim();
+    }
+  }
+  return '';
 }
 
 /** Converts Google Form / Sheets date values to YYYY-MM-DD */

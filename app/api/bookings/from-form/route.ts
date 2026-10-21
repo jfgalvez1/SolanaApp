@@ -11,6 +11,7 @@ type FormBookingBody = {
   check_in?: string
   check_out?: string
   pax?: number | string
+  contact_number?: string
 }
 
 function isIsoDate(value: string): boolean {
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
     const checkOut = (body.check_out || '').trim()
     const propertySlug = (body.property_slug || 'villa-1').trim()
     const pax = Number(body.pax)
+    const contactNumber = (body.contact_number || '').trim()
 
     if (!guestName) {
       return NextResponse.json({ error: 'guest_name is required' }, { status: 400 })
@@ -56,6 +58,12 @@ export async function POST(request: NextRequest) {
     if (checkOut <= checkIn) {
       return NextResponse.json(
         { error: 'check_out must be after check_in' },
+        { status: 400 }
+      )
+    }
+    if (contactNumber.length > 40) {
+      return NextResponse.json(
+        { error: 'contact_number must be 40 characters or fewer' },
         { status: 400 }
       )
     }
@@ -119,10 +127,11 @@ export async function POST(request: NextRequest) {
           status: 'pending',
           overlap_warning: overlapWarning,
           notes: 'Submitted via Google Form',
+          contact_number: contactNumber || null,
         },
       ])
       .select(
-        'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning'
+        'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning, contact_number'
       )
       .single()
 

@@ -22,6 +22,7 @@ type EditForm = {
   suggested_price: number
   status: 'confirmed' | 'reserved'
   notes: string
+  contact_number: string
 }
 
 const emptyEdit = (): EditForm => ({
@@ -32,6 +33,7 @@ const emptyEdit = (): EditForm => ({
   suggested_price: 0,
   status: 'confirmed',
   notes: '',
+  contact_number: '',
 })
 
 export default function BookingRequestsPage() {
@@ -93,6 +95,7 @@ export default function BookingRequestsPage() {
       suggested_price: Number(req.suggested_price) || 0,
       status: 'confirmed',
       notes: req.notes || '',
+      contact_number: req.contact_number || '',
     })
   }
 
@@ -165,6 +168,7 @@ export default function BookingRequestsPage() {
             total_price: form.suggested_price,
             status: form.status,
             notes: form.notes || 'Approved from booking request',
+            contact_number: form.contact_number.trim() || null,
           },
         ])
         .select('id')
@@ -182,6 +186,7 @@ export default function BookingRequestsPage() {
           pax: form.pax,
           suggested_price: form.suggested_price,
           notes: form.notes,
+          contact_number: form.contact_number.trim() || null,
           reservation_id: reservation.id,
           reviewed_at: new Date().toISOString(),
           overlap_warning: null,
@@ -328,6 +333,16 @@ export default function BookingRequestsPage() {
                   onChange={handleFormChange}
                   placeholder="Notes (optional)"
                 />
+                <input
+                  name="contact_number"
+                  type="tel"
+                  inputMode="tel"
+                  className="input-field"
+                  value={form.contact_number}
+                  onChange={handleFormChange}
+                  placeholder="Contact Number (Optional)"
+                  maxLength={40}
+                />
               </div>
               {liveConflicts.length > 0 && (
                 <p style={{ color: 'var(--danger)', margin: '0 0 0.75rem' }}>
@@ -415,6 +430,11 @@ export default function BookingRequestsPage() {
                       <tr key={req.id}>
                         <td>
                           <div style={{ fontWeight: 500 }}>{req.guest_name}</div>
+                          {req.contact_number && (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              {req.contact_number}
+                            </div>
+                          )}
                           {req.overlap_warning && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--danger)' }}>
                               {req.overlap_warning}

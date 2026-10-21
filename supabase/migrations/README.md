@@ -35,6 +35,8 @@ Open `001_multi_villa.sql` and run each step in order:
 After multi-villa is live, run `002_booking_requests.sql` in the SQL Editor.  
 Form submissions go to **Booking Requests** until you approve them into Reservations.
 
+Then run `003_contact_number.sql` to add the optional `contact_number` column on `reservations` and `booking_requests`.
+
 ## Phase 2: Deploy app
 
 Deploy the updated app only after Step 6 passes.

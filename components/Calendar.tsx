@@ -176,6 +176,9 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                       <div><strong>Check-out:</strong> {format(parseISO(res.check_out), 'MMM d, yyyy')}</div>
                       <div><strong>Pax:</strong> {res.pax ?? 2}</div>
                       <div><strong>Price:</strong> ₱{res.total_price.toLocaleString()}</div>
+                      {res.contact_number && (
+                        <div style={{ gridColumn: '1 / -1' }}><strong>Contact:</strong> {res.contact_number}</div>
+                      )}
                       {res.notes && (
                         <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {res.notes}</div>
                       )}
