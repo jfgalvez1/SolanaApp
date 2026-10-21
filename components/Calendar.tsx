@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   format,
   startOfMonth,
@@ -18,6 +18,53 @@ import { isOccupyingStatus } from '../lib/reservationOverlap'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 
+const WIFI_PASSWORD = 'SolanaVilla24'
+const CHECK_IN_TIME = '2:00 PM'
+const CHECK_OUT_TIME = '11:00 AM'
+
+function formatLongDate(iso: string) {
+  return format(parseISO(iso), 'MMMM d, yyyy')
+}
+
+function formatPeso(amount: number) {
+  return `₱${Number(amount).toLocaleString('en-US')}`
+}
+
+function buildGuestCopyText(res: Reservation) {
+  return [
+    `Guest Name(s): ${res.guest_name}`,
+    '',
+    `Contact Number: ${res.contact_number || ''}`,
+    '',
+    `Number of Guests: ${res.pax ?? 2} pax`,
+    '',
+    `Check-in Date: ${formatLongDate(res.check_in)}`,
+    `Check-in Time: ${CHECK_IN_TIME}`,
+    '',
+    `Check-out Date: ${formatLongDate(res.check_out)}`,
+    `Check-out Time: ${CHECK_OUT_TIME}`,
+    '',
+    `Amount Due: ${formatPeso(res.total_price)} (to be paid upon check-in)`,
+    '',
+    `WiFi Password: ${WIFI_PASSWORD}`,
+  ].join('\n')
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const el = document.createElement('textarea')
+    el.value = text
+    el.style.position = 'fixed'
+    el.style.left = '-9999px'
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+  }
+}
+
 interface CalendarProps {
   reservations: Reservation[]
   currentMonth?: Date
@@ -28,6 +75,13 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
   const [internalMonth, setInternalMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [dayReservations, setDayReservations] = useState<Reservation[]>([])
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!copiedId) return
+    const timer = window.setTimeout(() => setCopiedId(null), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copiedId])
 
   const currentMonth = externalMonth ?? internalMonth
 
@@ -71,6 +125,12 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
   const closeModal = () => {
     setSelectedDay(null)
     setDayReservations([])
+    setCopiedId(null)
+  }
+
+  const copyReservation = async (res: Reservation) => {
+    await copyText(buildGuestCopyText(res))
+    setCopiedId(res.id)
   }
 
   return (
@@ -142,6 +202,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
             style={{
               background: 'var(--card-bg, #fff)', borderRadius: '12px',
               padding: '1.5rem', minWidth: '320px', maxWidth: '480px', width: '90%',
+              maxHeight: '90vh', overflowY: 'auto',
               boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
             }}
           >
@@ -167,22 +228,37 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                       borderRadius: '8px', padding: '1rem'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.75rem' }}>
                       <span style={{ fontWeight: '600', fontSize: '1rem' }}>{res.guest_name}</span>
                       <span className={`status-badge status-${res.status}`}>{res.status}</span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                      <div><strong>Check-in:</strong> {format(parseISO(res.check_in), 'MMM d, yyyy')}</div>
-                      <div><strong>Check-out:</strong> {format(parseISO(res.check_out), 'MMM d, yyyy')}</div>
-                      <div><strong>Pax:</strong> {res.pax ?? 2}</div>
-                      <div><strong>Price:</strong> ₱{res.total_price.toLocaleString()}</div>
-                      {res.contact_number && (
-                        <div style={{ gridColumn: '1 / -1' }}><strong>Contact:</strong> {res.contact_number}</div>
-                      )}
-                      {res.notes && (
-                        <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {res.notes}</div>
-                      )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--text-main)' }}>
+                      <div><strong>Contact Number:</strong> {res.contact_number || '—'}</div>
+                      <div><strong>Number of Guests:</strong> {res.pax ?? 2} pax</div>
+                      <div>
+                        <div><strong>Check-in Date:</strong> {formatLongDate(res.check_in)}</div>
+                        <div><strong>Check-in Time:</strong> {CHECK_IN_TIME}</div>
+                      </div>
+                      <div>
+                        <div><strong>Check-out Date:</strong> {formatLongDate(res.check_out)}</div>
+                        <div><strong>Check-out Time:</strong> {CHECK_OUT_TIME}</div>
+                      </div>
+                      <div><strong>Amount Due:</strong> {formatPeso(res.total_price)} (to be paid upon check-in)</div>
+                      <div><strong>WiFi Password:</strong> {WIFI_PASSWORD}</div>
                     </div>
+                    {res.notes?.trim() && (
+                      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border, #e2e8f0)', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        <strong>Notes:</strong> {res.notes}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => copyReservation(res)}
+                      className="btn-primary"
+                      style={{ marginTop: '0.9rem', padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+                    >
+                      {copiedId === res.id ? 'Copied' : 'Copy details'}
+                    </button>
                   </div>
                 ))}
               </div>
