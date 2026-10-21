@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient'
 import AuthGuard from '../../components/AuthGuard'
 import { useProperty } from '../../components/PropertyProvider'
 import { Database } from '../../lib/database.types'
+import { addMonths, eachMonthOfInterval, format, isSameMonth, max, min, parseISO, startOfMonth, startOfYear } from 'date-fns'
 
 type Expense = Database['public']['Tables']['expenses']['Row']
 type NewExpense = Database['public']['Tables']['expenses']['Insert']
@@ -14,6 +15,7 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'))
   const [formData, setFormData] = useState<Omit<NewExpense, 'id' | 'created_at' | 'user_id' | 'property_id'>>({
     description: '',
     amount: 0,
@@ -111,20 +113,79 @@ export default function Expenses() {
     setFormData({ ...formData, [e.target.name]: value })
   }
 
+  const expenseMonthDates = expenses
+    .filter(item => item.date)
+    .map(item => startOfMonth(parseISO(item.date)))
+  const monthOptions = eachMonthOfInterval({
+    start: min([startOfYear(new Date()), ...expenseMonthDates]),
+    end: max([addMonths(new Date(), 12), ...expenseMonthDates]),
+  })
+  const selectedMonthDate = parseISO(`${selectedMonth}-01`)
+  const monthlyExpenses = expenses.filter(item => item.date && isSameMonth(parseISO(item.date), selectedMonthDate))
+  const sumAmounts = (rows: Expense[]) => rows.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+  const monthlyTotal = sumAmounts(monthlyExpenses)
+  const overallTotal = sumAmounts(expenses)
+
+  const renderExpenseTable = (rows: Expense[], emptyLabel: string) => (
+    <div className="card table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr><td colSpan={5} style={{ textAlign: 'center' }}>{emptyLabel}</td></tr>
+          ) : rows.map(item => (
+            <tr key={item.id}>
+              <td>{item.date}</td>
+              <td>{item.description}</td>
+              <td style={{ textTransform: 'capitalize' }}>{item.category}</td>
+              <td style={{ fontWeight: '500', color: 'var(--danger)' }}>-₱{item.amount}</td>
+              <td>
+                <button className="btn-primary" style={{ marginRight: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleEdit(item)}>Edit</button>
+                <button className="btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleDelete(item.id)}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+
   return (
     <AuthGuard>
       <div>
-        <div className="page-header">
-          <h1>Expenses{currentProperty ? ` — ${currentProperty.name}` : ''}</h1>
-          <button className="btn-primary" onClick={() => {
-            setShowForm(!showForm)
-            if (showForm) {
-              setEditingId(null)
-              setFormData({ description: '', amount: 0, category: 'other', date: new Date().toISOString().split('T')[0] })
-            }
-          }}>
-            {showForm ? 'Cancel' : '+ Record Expense'}
-          </button>
+        <div className="page-header month-selector-header">
+          <h1 style={{ marginBottom: 0 }}>Expenses{currentProperty ? ` — ${currentProperty.name}` : ''}</h1>
+          <div className="month-selector" style={{ flexWrap: 'wrap' }}>
+            <label htmlFor="expense-month">Month:</label>
+            <select
+              id="expense-month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            >
+              {monthOptions.map(date => (
+                <option key={format(date, 'yyyy-MM')} value={format(date, 'yyyy-MM')}>
+                  {format(date, 'MMMM yyyy')}
+                </option>
+              ))}
+            </select>
+            <button className="btn-primary" onClick={() => {
+              setShowForm(!showForm)
+              if (showForm) {
+                setEditingId(null)
+                setFormData({ description: '', amount: 0, category: 'other', date: new Date().toISOString().split('T')[0] })
+              }
+            }}>
+              {showForm ? 'Cancel' : '+ Record Expense'}
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -148,35 +209,29 @@ export default function Expenses() {
         )}
 
         {loading ? <p>Loading...</p> : (
-          <div className="card table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Description</th>
-                  <th>Category</th>
-                  <th>Amount</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center' }}>No expenses found.</td></tr>
-                ) : expenses.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.date}</td>
-                    <td>{item.description}</td>
-                    <td style={{ textTransform: 'capitalize' }}>{item.category}</td>
-                    <td style={{ fontWeight: '500', color: 'var(--danger)' }}>-₱{item.amount}</td>
-                    <td>
-                      <button className="btn-primary" style={{ marginRight: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleEdit(item)}>Edit</button>
-                      <button className="btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleDelete(item.id)}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--text-muted)' }}>
+              {format(selectedMonthDate, 'MMMM yyyy')}
+            </h2>
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3>Expenses this month</h3>
+              <div className="stat-value" style={{ color: 'var(--danger)' }}>-₱{monthlyTotal.toFixed(2)}</div>
+              <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>
+                {monthlyExpenses.length} {monthlyExpenses.length === 1 ? 'expense' : 'expenses'}
+              </p>
+            </div>
+            {renderExpenseTable(monthlyExpenses, `No expenses in ${format(selectedMonthDate, 'MMMM yyyy')}.`)}
+
+            <h2 style={{ fontSize: '1.25rem', margin: '0.5rem 0 1rem', color: 'var(--text-muted)' }}>All Expenses</h2>
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3>Total expenses</h3>
+              <div className="stat-value" style={{ color: 'var(--danger)' }}>-₱{overallTotal.toFixed(2)}</div>
+              <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>
+                {expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}
+              </p>
+            </div>
+            {renderExpenseTable(expenses, 'No expenses found.')}
+          </>
         )}
       </div>
     </AuthGuard>
