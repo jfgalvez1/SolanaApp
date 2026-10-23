@@ -10,6 +10,7 @@ import {
   formatOverlapError,
   isOccupyingStatus
 } from '../../lib/reservationOverlap'
+import { checkInPreferenceOptions } from '../../lib/checkInPreference'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 type NewReservation = Database['public']['Tables']['reservations']['Insert']
@@ -35,7 +36,8 @@ export default function Reservations() {
     total_price: 2500,
     status: 'confirmed',
     notes: '',
-    contact_number: ''
+    contact_number: '',
+    check_in_preference: ''
   })
 
   const today = getLocalToday()
@@ -50,7 +52,8 @@ export default function Reservations() {
       total_price: defaultTotalPrice,
       status: 'confirmed',
       notes: '',
-      contact_number: ''
+      contact_number: '',
+      check_in_preference: ''
     })
     setPax(currentProperty?.included_pax ?? 2)
   }
@@ -139,6 +142,7 @@ export default function Reservations() {
         ...formData,
         pax,
         contact_number: (formData.contact_number || '').trim() || null,
+        check_in_preference: (formData.check_in_preference || '').trim() || null,
         user_id: user.id,
         property_id: currentProperty.id,
         status: formData.status as Database['public']['Tables']['reservations']['Row']['status']
@@ -178,7 +182,8 @@ export default function Reservations() {
       total_price: reservation.total_price,
       status: reservation.status,
       notes: reservation.notes,
-      contact_number: reservation.contact_number || ''
+      contact_number: reservation.contact_number || '',
+      check_in_preference: reservation.check_in_preference || ''
     })
     setPax(reservation.pax ?? 2)
     setShowForm(true)
@@ -217,7 +222,7 @@ export default function Reservations() {
   const handleExportCSV = () => {
     if (displayedReservations.length === 0) return
 
-    const headers = ['Guest Name', 'Contact Number', 'Check In', 'Check Out', 'Pax', 'Total Price', 'Status', 'Notes']
+    const headers = ['Guest Name', 'Contact Number', 'Check In', 'Check Out', 'Check-in Preference', 'Pax', 'Total Price', 'Status', 'Notes']
     
     const csvRows = [headers.join(',')]
     
@@ -227,6 +232,7 @@ export default function Reservations() {
         `"${(res.contact_number || '').replace(/"/g, '""')}"`,
         `"${res.check_in || ''}"`,
         `"${res.check_out || ''}"`,
+        `"${(res.check_in_preference || '').replace(/"/g, '""')}"`,
         res.pax ?? 2,
         res.total_price || 0,
         `"${res.status || ''}"`,
@@ -327,6 +333,12 @@ export default function Reservations() {
                 </select>
                 <input name="notes" placeholder="Notes (Optional)" value={formData.notes || ''} onChange={handleChange} className="input-field" />
                 <input name="contact_number" type="tel" inputMode="tel" placeholder="Contact Number (Optional)" value={formData.contact_number || ''} onChange={handleChange} className="input-field" maxLength={40} />
+                <select name="check_in_preference" value={formData.check_in_preference || ''} onChange={handleChange} className="input-field">
+                  <option value="">Check-in preference (Optional)</option>
+                  {checkInPreferenceOptions(formData.check_in_preference || '').map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
               </div>
               {dateConflict && (
                 <p style={{ color: 'var(--danger)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
@@ -418,6 +430,9 @@ export default function Reservations() {
                       <div style={{ fontWeight: '500' }}>{res.guest_name}</div>
                       {res.contact_number && (
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.contact_number}</div>
+                      )}
+                      {res.check_in_preference && (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Check-in: {res.check_in_preference}</div>
                       )}
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.notes}</div>
                     </td>

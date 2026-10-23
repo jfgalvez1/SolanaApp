@@ -1,6 +1,6 @@
 # Google Form → Reservation sync
 
-Keeps your existing Google Form. When a guest submits, Apps Script posts **guest name, check-in, check-out, pax, and contact number** into the app as a **pending booking request**. Nothing is added to Reservations until you approve it on the **Booking Requests** page. Contact number is optional.
+Keeps your existing Google Form. When a guest submits, Apps Script posts **guest name, check-in, check-out, pax, contact number, and check-in preference** into the app as a **pending booking request**. Nothing is added to Reservations until you approve it on the **Booking Requests** page. Contact number and check-in preference are optional.
 
 ## 1. App env
 
@@ -43,12 +43,15 @@ These Form question titles must match exactly (or edit `QUESTION` in the script)
 | Please select your check-in date: | `check_in` |
 | Please select your check-out date: | `check_out` |
 | Contact number | `contact_number` (optional) |
+| Check-in preference* | `check_in_preference` (optional) |
 
 ## 4. Database (one-time)
 
 In Supabase → SQL Editor, run `supabase/migrations/002_booking_requests.sql`.
 
 Then run `supabase/migrations/003_contact_number.sql` so the optional contact number can be saved. Use a short-answer question titled **Contact number** (not a number question) so a leading `0` is kept.
+
+Then run `supabase/migrations/004_check_in_preference.sql` so the **Check-in preference*** answer can be saved.
 
 ## 5. Test
 

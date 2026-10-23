@@ -12,6 +12,7 @@ type FormBookingBody = {
   check_out?: string
   pax?: number | string
   contact_number?: string
+  check_in_preference?: string
 }
 
 function isIsoDate(value: string): boolean {
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
     const propertySlug = (body.property_slug || 'villa-1').trim()
     const pax = Number(body.pax)
     const contactNumber = (body.contact_number || '').trim()
+    const checkInPreference = (body.check_in_preference || '').trim()
 
     if (!guestName) {
       return NextResponse.json({ error: 'guest_name is required' }, { status: 400 })
@@ -64,6 +66,12 @@ export async function POST(request: NextRequest) {
     if (contactNumber.length > 40) {
       return NextResponse.json(
         { error: 'contact_number must be 40 characters or fewer' },
+        { status: 400 }
+      )
+    }
+    if (checkInPreference.length > 120) {
+      return NextResponse.json(
+        { error: 'check_in_preference must be 120 characters or fewer' },
         { status: 400 }
       )
     }
@@ -128,10 +136,11 @@ export async function POST(request: NextRequest) {
           overlap_warning: overlapWarning,
           notes: 'Submitted via Google Form',
           contact_number: contactNumber || null,
+          check_in_preference: checkInPreference || null,
         },
       ])
       .select(
-        'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning, contact_number'
+        'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning, contact_number, check_in_preference'
       )
       .single()
 

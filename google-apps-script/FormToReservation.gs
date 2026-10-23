@@ -20,6 +20,7 @@
  *   Please select your check-in date:
  *   Please select your check-out date:
  *   Contact number          (optional)
+ *   Check-in preference*    (optional)
  */
 
 var QUESTION = {
@@ -28,6 +29,7 @@ var QUESTION = {
   checkIn: 'Please select your check-in date:',
   checkOut: 'Please select your check-out date:',
   contactNumber: 'Contact number',
+  checkInPreference: 'Check-in preference*',
 };
 
 function onFormSubmit(e) {
@@ -48,6 +50,7 @@ function onFormSubmit(e) {
     check_in: toIsoDate(answers.checkIn),
     check_out: toIsoDate(answers.checkOut),
     contact_number: answers.contactNumber,
+    check_in_preference: answers.checkInPreference,
   };
 
   var response = UrlFetchApp.fetch(webhookUrl, {
@@ -84,6 +87,7 @@ function readAnswers(e) {
       checkIn: named[QUESTION.checkIn] || '',
       checkOut: named[QUESTION.checkOut] || '',
       contactNumber: findContactNumber(named),
+      checkInPreference: findCheckInPreference(named),
     };
   }
 
@@ -99,6 +103,7 @@ function readAnswers(e) {
       checkIn: map[QUESTION.checkIn] || '',
       checkOut: map[QUESTION.checkOut] || '',
       contactNumber: findContactNumber(map),
+      checkInPreference: findCheckInPreference(map),
     };
   }
 
@@ -119,6 +124,21 @@ function findContactNumber(map) {
   for (var i = 0; i < keys.length; i++) {
     var normalized = String(keys[i]).trim().toLowerCase().replace(/\*+$/, '').trim();
     if (normalized === 'contact number' || normalized.indexOf('contact number') === 0) {
+      return String(map[keys[i]] || '').trim();
+    }
+  }
+  return '';
+}
+
+/** Matches "Check-in preference", ignoring case and a trailing *. */
+function findCheckInPreference(map) {
+  var exact = map[QUESTION.checkInPreference];
+  if (exact) return String(exact).trim();
+
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    var normalized = String(keys[i]).trim().toLowerCase().replace(/\*+$/, '').trim();
+    if (normalized === 'check-in preference' || normalized === 'check in preference') {
       return String(map[keys[i]] || '').trim();
     }
   }

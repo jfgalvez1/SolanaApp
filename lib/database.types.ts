@@ -120,6 +120,7 @@ export interface Database {
           status: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes: string | null
           contact_number: string | null
+          check_in_preference: string | null
           created_at: string
         }
         Insert: {
@@ -134,6 +135,7 @@ export interface Database {
           status?: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes?: string | null
           contact_number?: string | null
+          check_in_preference?: string | null
           created_at?: string
         }
         Update: {
@@ -148,6 +150,7 @@ export interface Database {
           status?: 'confirmed' | 'reserved' | 'cancelled' | 'completed'
           notes?: string | null
           contact_number?: string | null
+          check_in_preference?: string | null
           created_at?: string
         }
         Relationships: []
@@ -166,6 +169,7 @@ export interface Database {
           overlap_warning: string | null
           notes: string | null
           contact_number: string | null
+          check_in_preference: string | null
           reservation_id: string | null
           created_at: string
           reviewed_at: string | null
@@ -183,6 +187,7 @@ export interface Database {
           overlap_warning?: string | null
           notes?: string | null
           contact_number?: string | null
+          check_in_preference?: string | null
           reservation_id?: string | null
           created_at?: string
           reviewed_at?: string | null
@@ -200,6 +205,7 @@ export interface Database {
           overlap_warning?: string | null
           notes?: string | null
           contact_number?: string | null
+          check_in_preference?: string | null
           reservation_id?: string | null
           created_at?: string
           reviewed_at?: string | null

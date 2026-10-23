@@ -37,6 +37,8 @@ Form submissions go to **Booking Requests** until you approve them into Reservat
 
 Then run `003_contact_number.sql` to add the optional `contact_number` column on `reservations` and `booking_requests`.
 
+Then run `004_check_in_preference.sql` to add the optional `check_in_preference` column on both tables.
+
 ## Phase 2: Deploy app
 
 Deploy the updated app only after Step 6 passes.

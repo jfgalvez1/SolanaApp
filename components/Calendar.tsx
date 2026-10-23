@@ -40,6 +40,7 @@ function buildGuestCopyText(res: Reservation) {
     '',
     `Check-in Date: ${formatLongDate(res.check_in)}`,
     `Check-in Time: ${CHECK_IN_TIME}`,
+    ...(res.check_in_preference ? [`Check-in Preference: ${res.check_in_preference}`] : []),
     '',
     `Check-out Date: ${formatLongDate(res.check_out)}`,
     `Check-out Time: ${CHECK_OUT_TIME}`,
@@ -238,6 +239,9 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                       <div>
                         <div><strong>Check-in Date:</strong> {formatLongDate(res.check_in)}</div>
                         <div><strong>Check-in Time:</strong> {CHECK_IN_TIME}</div>
+                        {res.check_in_preference && (
+                          <div><strong>Check-in Preference:</strong> {res.check_in_preference}</div>
+                        )}
                       </div>
                       <div>
                         <div><strong>Check-out Date:</strong> {formatLongDate(res.check_out)}</div>

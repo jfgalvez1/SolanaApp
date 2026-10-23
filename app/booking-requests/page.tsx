@@ -10,6 +10,7 @@ import {
   formatOverlapError,
   isOccupyingStatus,
 } from '../../lib/reservationOverlap'
+import { checkInPreferenceOptions } from '../../lib/checkInPreference'
 
 type BookingRequest = Database['public']['Tables']['booking_requests']['Row']
 type Reservation = Database['public']['Tables']['reservations']['Row']
@@ -23,6 +24,7 @@ type EditForm = {
   status: 'confirmed' | 'reserved'
   notes: string
   contact_number: string
+  check_in_preference: string
 }
 
 const emptyEdit = (): EditForm => ({
@@ -34,6 +36,7 @@ const emptyEdit = (): EditForm => ({
   status: 'confirmed',
   notes: '',
   contact_number: '',
+  check_in_preference: '',
 })
 
 export default function BookingRequestsPage() {
@@ -96,6 +99,7 @@ export default function BookingRequestsPage() {
       status: 'confirmed',
       notes: req.notes || '',
       contact_number: req.contact_number || '',
+      check_in_preference: req.check_in_preference || '',
     })
   }
 
@@ -169,6 +173,7 @@ export default function BookingRequestsPage() {
             status: form.status,
             notes: form.notes || 'Approved from booking request',
             contact_number: form.contact_number.trim() || null,
+            check_in_preference: form.check_in_preference.trim() || null,
           },
         ])
         .select('id')
@@ -187,6 +192,7 @@ export default function BookingRequestsPage() {
           suggested_price: form.suggested_price,
           notes: form.notes,
           contact_number: form.contact_number.trim() || null,
+          check_in_preference: form.check_in_preference.trim() || null,
           reservation_id: reservation.id,
           reviewed_at: new Date().toISOString(),
           overlap_warning: null,
@@ -343,6 +349,19 @@ export default function BookingRequestsPage() {
                   placeholder="Contact Number (Optional)"
                   maxLength={40}
                 />
+                <select
+                  name="check_in_preference"
+                  className="input-field"
+                  value={form.check_in_preference}
+                  onChange={handleFormChange}
+                >
+                  <option value="">Check-in preference (Optional)</option>
+                  {checkInPreferenceOptions(form.check_in_preference).map(option => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               {liveConflicts.length > 0 && (
                 <p style={{ color: 'var(--danger)', margin: '0 0 0.75rem' }}>
@@ -433,6 +452,11 @@ export default function BookingRequestsPage() {
                           {req.contact_number && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                               {req.contact_number}
+                            </div>
+                          )}
+                          {req.check_in_preference && (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              Check-in: {req.check_in_preference}
                             </div>
                           )}
                           {req.overlap_warning && (
