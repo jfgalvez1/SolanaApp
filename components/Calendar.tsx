@@ -9,14 +9,19 @@ import {
   eachDayOfInterval,
   isSameMonth,
   isSameDay,
+  isAfter,
   addMonths,
   subMonths,
-  parseISO
+  parseISO,
+  startOfDay
 } from 'date-fns'
 import { Database } from '../lib/database.types'
 import { isOccupyingStatus } from '../lib/reservationOverlap'
 
-type Reservation = Database['public']['Tables']['reservations']['Row']
+type ReservationRow = Database['public']['Tables']['reservations']['Row']
+
+type CalendarReservation = Pick<ReservationRow, 'id' | 'check_in' | 'check_out' | 'status'> &
+  Partial<Pick<ReservationRow, 'guest_name' | 'contact_number' | 'pax' | 'total_price' | 'notes' | 'check_in_preference'>>
 
 const WIFI_PASSWORD = 'SolanaVilla24'
 const CHECK_IN_TIME = '2:00 PM'
@@ -30,7 +35,7 @@ function formatPeso(amount: number) {
   return `₱${Number(amount).toLocaleString('en-US')}`
 }
 
-function buildGuestCopyText(res: Reservation) {
+function buildGuestCopyText(res: CalendarReservation) {
   return [
     `Guest Name(s): ${res.guest_name}`,
     '',
@@ -45,7 +50,7 @@ function buildGuestCopyText(res: Reservation) {
     `Check-out Date: ${formatLongDate(res.check_out)}`,
     `Check-out Time: ${CHECK_OUT_TIME}`,
     '',
-    `Amount Due: ${formatPeso(res.total_price)} (to be paid upon check-in)`,
+    `Amount Due: ${formatPeso(res.total_price ?? 0)} (to be paid upon check-in)`,
     '',
     `WiFi Password: ${WIFI_PASSWORD}`,
   ].join('\n')
@@ -67,15 +72,19 @@ async function copyText(text: string) {
 }
 
 interface CalendarProps {
-  reservations: Reservation[]
+  reservations: CalendarReservation[]
   currentMonth?: Date
   onMonthChange?: (date: Date) => void
+  /** Public availability view: same grid, without guest details. */
+  hideDetails?: boolean
+  /** This month and later months. Past months stay hidden, and days are not clickable. */
+  availabilityOnly?: boolean
 }
 
-export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange }: CalendarProps) {
-  const [internalMonth, setInternalMonth] = useState(new Date())
+export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange, hideDetails = false, availabilityOnly = false }: CalendarProps) {
+  const [internalMonth, setInternalMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
-  const [dayReservations, setDayReservations] = useState<Reservation[]>([])
+  const [dayReservations, setDayReservations] = useState<CalendarReservation[]>([])
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -84,7 +93,10 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
     return () => window.clearTimeout(timer)
   }, [copiedId])
 
+  const today = startOfDay(new Date())
+  const thisMonthStart = startOfMonth(today)
   const currentMonth = externalMonth ?? internalMonth
+  const canGoBack = !availabilityOnly || isAfter(startOfMonth(currentMonth), thisMonthStart)
 
   const onNextMonth = () => {
     const next = addMonths(currentMonth, 1)
@@ -92,6 +104,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
     else setInternalMonth(next)
   }
   const onPrevMonth = () => {
+    if (!canGoBack) return
     const prev = subMonths(currentMonth, 1)
     if (onMonthChange) onMonthChange(prev)
     else setInternalMonth(prev)
@@ -104,7 +117,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
 
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate })
 
-  const getReservationsForDay = (day: Date): Reservation[] => {
+  const getReservationsForDay = (day: Date): CalendarReservation[] => {
     const dayIso = format(day, 'yyyy-MM-dd')
     return reservations.filter(res => {
       if (!isOccupyingStatus(res.status)) return false
@@ -118,6 +131,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
   }
 
   const handleDayClick = (day: Date) => {
+    if (hideDetails) return
     const found = getReservationsForDay(day)
     setSelectedDay(day)
     setDayReservations(found)
@@ -129,7 +143,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
     setCopiedId(null)
   }
 
-  const copyReservation = async (res: Reservation) => {
+  const copyReservation = async (res: CalendarReservation) => {
     await copyText(buildGuestCopyText(res))
     setCopiedId(res.id)
   }
@@ -138,7 +152,15 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
     <>
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <button onClick={onPrevMonth} className="btn-primary" style={{ padding: '0.25rem 0.5rem' }}>&lt;</button>
+          <button
+            onClick={onPrevMonth}
+            className="btn-primary"
+            style={{ padding: '0.25rem 0.5rem', visibility: canGoBack ? 'visible' : 'hidden' }}
+            aria-hidden={!canGoBack}
+            tabIndex={canGoBack ? 0 : -1}
+          >
+            &lt;
+          </button>
           <h3 style={{ margin: 0 }}>{format(currentMonth, 'MMMM yyyy')}</h3>
           <button onClick={onNextMonth} className="btn-primary" style={{ padding: '0.25rem 0.5rem' }}>&gt;</button>
         </div>
@@ -151,14 +173,19 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
           ))}
 
           {calendarDays.map((day) => {
-            const status = getDayStatus(day)
             const isCurrentMonth = isSameMonth(day, monthStart)
-            const isToday = isSameDay(day, new Date())
+            if (availabilityOnly && !isCurrentMonth) {
+              return <div key={day.toISOString()} style={{ padding: '0.5rem' }} />
+            }
+
+            const status = getDayStatus(day)
+            const isToday = isSameDay(day, today)
+            const interactive = !hideDetails && !availabilityOnly
 
             return (
               <div
                 key={day.toISOString()}
-                onClick={() => handleDayClick(day)}
+                onClick={interactive ? () => handleDayClick(day) : undefined}
                 style={{
                   padding: '0.5rem',
                   borderRadius: '4px',
@@ -168,7 +195,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                   fontWeight: isToday ? 'bold' : 'normal',
                   border: isToday && status !== 'reserved' ? '1px solid var(--primary)' : 'none',
                   position: 'relative',
-                  cursor: status === 'reserved' ? 'pointer' : 'default'
+                  cursor: interactive && status === 'reserved' ? 'pointer' : 'default'
                 }}
               >
                 <span style={{ position: 'relative', zIndex: 1 }}>{format(day, 'd')}</span>
@@ -177,19 +204,35 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
           })}
         </div>
 
-        <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <div style={{ width: '10px', height: '10px', backgroundColor: 'var(--success)', borderRadius: '50%' }}></div>
-            Reserved
+        {availabilityOnly ? (
+          <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.95rem', lineHeight: 1.5 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+              <span style={{ width: '1rem', height: '1rem', marginTop: '0.2rem', borderRadius: '4px', backgroundColor: 'var(--success)', flexShrink: 0 }} />
+              <span><strong>Green dates are reserved.</strong> The villa is already booked on those nights.</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+              <span style={{ width: '1rem', height: '1rem', marginTop: '0.2rem', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: 'transparent', flexShrink: 0 }} />
+              <span><strong>Open dates are available.</strong> You can reserve any date that is not highlighted.</span>
+            </div>
+            <p style={{ margin: '0.15rem 0 0', color: 'var(--text-muted)' }}>
+              Check-in is at <strong style={{ color: 'var(--text-main)' }}>{CHECK_IN_TIME}</strong>. Check-out is at <strong style={{ color: 'var(--text-main)' }}>{CHECK_OUT_TIME}</strong>.
+            </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            Today (Border)
+        ) : (
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ width: '10px', height: '10px', backgroundColor: 'var(--success)', borderRadius: '50%' }}></div>
+              Reserved
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              Today (Border)
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Modal */}
-      {selectedDay && (
+      {selectedDay && !hideDetails && (
         <div
           onClick={closeModal}
           style={{
@@ -247,7 +290,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                         <div><strong>Check-out Date:</strong> {formatLongDate(res.check_out)}</div>
                         <div><strong>Check-out Time:</strong> {CHECK_OUT_TIME}</div>
                       </div>
-                      <div><strong>Amount Due:</strong> {formatPeso(res.total_price)} (to be paid upon check-in)</div>
+                      <div><strong>Amount Due:</strong> {formatPeso(res.total_price ?? 0)} (to be paid upon check-in)</div>
                       <div><strong>WiFi Password:</strong> {WIFI_PASSWORD}</div>
                     </div>
                     {res.notes?.trim() && (

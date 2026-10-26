@@ -43,6 +43,7 @@ const Navbar = () => {
       </div>
       <div className="nav-links">
         <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>Dashboard</Link>
+        <Link href="/availability" className={`nav-link ${pathname === '/availability' ? 'active' : ''}`}>Availability</Link>
         <Link href="/reservations" className={`nav-link ${pathname === '/reservations' ? 'active' : ''}`}>Reservations</Link>
         <Link href="/booking-requests" className={`nav-link ${pathname === '/booking-requests' ? 'active' : ''}`}>Booking Requests</Link>
         <Link href="/expenses" className={`nav-link ${pathname === '/expenses' ? 'active' : ''}`}>Expenses</Link>

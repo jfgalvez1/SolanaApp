@@ -277,7 +277,18 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_public_availability: {
+        Args: Record<string, never>
+        Returns: {
+          property_id: string
+          property_name: string
+          property_slug: string
+          reservation_id: string | null
+          check_in: string | null
+          check_out: string | null
+          status: string | null
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

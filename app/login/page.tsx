@@ -1,5 +1,6 @@
 'use client'
 import { useState, FormEvent } from 'react'
+import Link from 'next/link'
 import { useAuth } from '../../components/AuthProvider'
 import { useRouter } from 'next/navigation'
 
@@ -52,6 +53,9 @@ export default function Login() {
             {loading ? 'Loading...' : 'Sign In'}
           </button>
         </form>
+        <p style={{ textAlign: 'center', marginTop: '1.25rem', marginBottom: 0 }}>
+          <Link href="/availability" style={{ color: 'var(--primary)', fontWeight: 500 }}>Check available dates</Link>
+        </p>
       </div>
     </div>
   )
