@@ -39,7 +39,7 @@ export default function CostCalculator({ reservations }: { reservations: StayRan
 
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>Cost calculator</h3>
+      <h3 style={{ marginTop: 0 }}>Check availability dates</h3>
       <p style={{ marginTop: 0, color: 'var(--text-muted)' }}>
         {peso(PUBLIC_STAY_RATE.basePrice)} per night for {PUBLIC_STAY_RATE.includedPax} guests.
         Each additional guest is {peso(PUBLIC_STAY_RATE.extraPaxPrice)}.
