@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '../../../../lib/supabaseAdmin'
-import { calculateTotalPrice } from '../../../../lib/pricing'
+import { calculateTotalPrice, guestLimit } from '../../../../lib/pricing'
 import { findOverlappingReservations } from '../../../../lib/reservationOverlap'
 import { Property } from '../../../../components/PropertyProvider'
 
@@ -92,9 +92,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (pax > property.max_pax) {
+    const maxPax = guestLimit(property)
+    if (maxPax != null && pax > maxPax) {
       return NextResponse.json(
-        { error: `pax cannot exceed ${property.max_pax}` },
+        { error: `pax cannot exceed ${maxPax}` },
         { status: 400 }
       )
     }

@@ -3,6 +3,7 @@ import './globals.css'
 import { AuthProvider } from '../components/AuthProvider'
 import { PropertyProvider } from '../components/PropertyProvider'
 import Navbar from '../components/Navbar'
+import { BookingRequestAlerts } from '../components/BookingRequestAlerts'
 import { ReactNode } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -18,12 +19,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className={inter.className}>
         <AuthProvider>
           <PropertyProvider>
-            <div className="app-container">
-              <Navbar />
-              <main className="main-content">
-                {children}
-              </main>
-            </div>
+            <BookingRequestAlerts>
+              <div className="app-container">
+                <Navbar />
+                <main className="main-content">
+                  {children}
+                </main>
+              </div>
+            </BookingRequestAlerts>
           </PropertyProvider>
         </AuthProvider>
       </body>

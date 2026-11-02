@@ -221,7 +221,7 @@ export interface Database {
           base_price: number
           included_pax: number
           extra_pax_price: number
-          max_pax: number
+          max_pax: number | null
           created_at: string
         }
         Insert: {
@@ -232,7 +232,7 @@ export interface Database {
           base_price?: number
           included_pax?: number
           extra_pax_price?: number
-          max_pax?: number
+          max_pax?: number | null
           created_at?: string
         }
         Update: {
@@ -243,7 +243,7 @@ export interface Database {
           base_price?: number
           included_pax?: number
           extra_pax_price?: number
-          max_pax?: number
+          max_pax?: number | null
           created_at?: string
         }
         Relationships: []

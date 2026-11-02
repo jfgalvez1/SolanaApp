@@ -4,10 +4,11 @@ import { Property } from '../components/PropertyProvider'
  * Rate card.
  * Weekdays are Sunday–Thursday. Weekends are Friday–Saturday.
  * Holiday nights use the holiday rate even when they fall on a weekday.
- * ₱2,500 / ₱2,800 covers 2 guests. Each guest after that is ₱500, maximum 5.
+ * ₱2,500 / ₱2,800 covers 2 guests. Each guest after that is ₱500.
+ * Solana Villa accepts up to 6 guests. Solana Villa 2 has no guest maximum.
  */
 export const PUBLIC_STAY_RATE = {
-  maxPax: 5,
+  maxPax: 6,
   includedPax: 2,
   weekdayPrice: 2500,
   weekendPrice: 2800,
@@ -128,6 +129,14 @@ export function stayNights(checkIn: string, checkOut: string): string[] {
   return Array.from({ length: count }, (_, index) =>
     new Date(start + index * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   )
+}
+
+/** Guest cap for a villa. Null means there is no maximum. */
+export function guestLimit(property?: { slug?: string | null; max_pax?: number | null } | null): number | null {
+  if (!property) return PUBLIC_STAY_RATE.maxPax
+  if (property.slug === 'villa-2') return null
+  if (property.slug === 'villa-1') return PUBLIC_STAY_RATE.maxPax
+  return property.max_pax ?? null
 }
 
 function extraGuestCharge(pax: number, includedPax: number, extraPaxPrice: number): number {

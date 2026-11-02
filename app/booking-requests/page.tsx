@@ -1,16 +1,17 @@
 'use client'
-import { useEffect, useState, FormEvent, ChangeEvent } from 'react'
+import { useCallback, useEffect, useState, FormEvent, ChangeEvent } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import AuthGuard from '../../components/AuthGuard'
 import { useProperty } from '../../components/PropertyProvider'
 import { Database } from '../../lib/database.types'
-import { calculateTotalPrice, extraPaxLabel } from '../../lib/pricing'
+import { calculateTotalPrice, extraPaxLabel, guestLimit } from '../../lib/pricing'
 import {
   findOverlappingReservations,
   formatOverlapError,
   isOccupyingStatus,
 } from '../../lib/reservationOverlap'
 import { checkInPreferenceOptions } from '../../lib/checkInPreference'
+import { useBookingRequestAlerts } from '../../components/BookingRequestAlerts'
 
 type BookingRequest = Database['public']['Tables']['booking_requests']['Row']
 type Reservation = Database['public']['Tables']['reservations']['Row']
@@ -40,7 +41,8 @@ const emptyEdit = (): EditForm => ({
 })
 
 export default function BookingRequestsPage() {
-  const { currentProperty } = useProperty()
+  const { properties, currentProperty, setCurrentProperty } = useProperty()
+  const { villaPending, freshIds, refreshToken } = useBookingRequestAlerts()
   const [requests, setRequests] = useState<BookingRequest[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,16 +51,10 @@ export default function BookingRequestsPage() {
   const [form, setForm] = useState<EditForm>(emptyEdit())
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (currentProperty) {
-      fetchData()
-    }
-  }, [currentProperty])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async (silent = false) => {
     if (!currentProperty) return
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const [reqRes, resRes] = await Promise.all([
         supabase
           .from('booking_requests')
@@ -80,9 +76,21 @@ export default function BookingRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentProperty])
+
+  useEffect(() => {
+    void fetchData()
+  }, [fetchData])
+
+  useEffect(() => {
+    if (refreshToken > 0) {
+      setActiveTab('pending')
+      void fetchData(true)
+    }
+  }, [refreshToken, fetchData])
 
   const pending = requests.filter(r => r.status === 'pending')
+  const elsewhere = villaPending.filter(item => item.propertyId !== currentProperty?.id)
   const approved = requests.filter(r => r.status === 'approved')
   const rejected = requests.filter(r => r.status === 'rejected')
   const displayed =
@@ -151,6 +159,11 @@ export default function BookingRequestsPage() {
     }
     if (form.check_out <= form.check_in) {
       alert('Check-out must be after check-in')
+      return
+    }
+    const paxLimit = guestLimit(currentProperty)
+    if (!Number.isInteger(form.pax) || form.pax < 1 || (paxLimit != null && form.pax > paxLimit)) {
+      alert(paxLimit == null ? 'Enter at least 1 guest' : `Guests cannot exceed ${paxLimit}`)
       return
     }
 
@@ -265,6 +278,38 @@ export default function BookingRequestsPage() {
           or reject to discard.
         </p>
 
+        {elsewhere.map(item => (
+          <div
+            key={item.propertyId}
+            style={{
+              background: '#fef3c7',
+              color: '#92400e',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span>
+              {item.propertyName} has {item.count} pending {item.count === 1 ? 'request' : 'requests'}.
+            </span>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                const property = properties.find(entry => entry.id === item.propertyId)
+                if (property) setCurrentProperty(property)
+              }}
+            >
+              Switch to {item.propertyName}
+            </button>
+          </div>
+        ))}
+
         {editing && (
           <div className="card">
             <h3 style={{ marginTop: 0 }}>Review &amp; approve</h3>
@@ -299,22 +344,31 @@ export default function BookingRequestsPage() {
                   onChange={handleFormChange}
                   required
                 />
-                <select
-                  name="pax"
-                  className="input-field"
-                  value={form.pax}
-                  onChange={handleFormChange}
-                >
-                  {[...Array(currentProperty?.max_pax ?? 5)].map((_, i) => {
-                    const n = i + 1
-                    return (
+                {guestLimit(currentProperty) == null ? (
+                  <input
+                    name="pax"
+                    type="number"
+                    min={1}
+                    className="input-field"
+                    value={form.pax}
+                    onChange={handleFormChange}
+                    required
+                  />
+                ) : (
+                  <select
+                    name="pax"
+                    className="input-field"
+                    value={form.pax}
+                    onChange={handleFormChange}
+                  >
+                    {Array.from({ length: guestLimit(currentProperty) || 0 }, (_, i) => i + 1).map(n => (
                       <option key={n} value={n}>
                         {n} Pax{' '}
                         {currentProperty ? extraPaxLabel(n, currentProperty) : ''}
                       </option>
-                    )
-                  })}
-                </select>
+                    ))}
+                  </select>
+                )}
                 <input
                   name="suggested_price"
                   type="number"
@@ -448,7 +502,21 @@ export default function BookingRequestsPage() {
                     displayed.map(req => (
                       <tr key={req.id}>
                         <td>
-                          <div style={{ fontWeight: 500 }}>{req.guest_name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+                            {req.guest_name}
+                            {freshIds.includes(req.id) && (
+                              <span style={{
+                                background: 'var(--primary)',
+                                color: '#fff',
+                                borderRadius: '999px',
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                padding: '0.1rem 0.45rem',
+                              }}>
+                                New
+                              </span>
+                            )}
+                          </div>
                           {req.contact_number && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                               {req.contact_number}

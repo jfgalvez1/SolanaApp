@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Calendar from '../../components/Calendar'
 import CostCalculator from '../../components/CostCalculator'
+import { guestLimit } from '../../lib/pricing'
 import { useAuth } from '../../components/AuthProvider'
 import { useProperty } from '../../components/PropertyProvider'
 import { supabase } from '../../lib/supabaseClient'
@@ -162,7 +163,13 @@ export default function AvailabilityPage() {
 
       {loading && <div className="card">Loading...</div>}
       {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
-      {!loading && <CostCalculator reservations={current?.reservations || []} />}
+      {!loading && (
+        <CostCalculator
+          key={current?.id || 'villa'}
+          reservations={current?.reservations || []}
+          maxPax={guestLimit(current ? { slug: current.slug } : null)}
+        />
+      )}
       {!loading && !error && !current && <div className="card">No villas found.</div>}
       {!loading && !error && current && (
         <Calendar reservations={current.reservations} hideDetails availabilityOnly />

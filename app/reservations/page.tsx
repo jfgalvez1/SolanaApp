@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient'
 import AuthGuard from '../../components/AuthGuard'
 import { useProperty } from '../../components/PropertyProvider'
 import { Database } from '../../lib/database.types'
-import { calculateTotalPrice, extraPaxLabel } from '../../lib/pricing'
+import { calculateTotalPrice, extraPaxLabel, guestLimit } from '../../lib/pricing'
 import {
   findOverlappingReservations,
   formatOverlapError,
@@ -116,6 +116,11 @@ export default function Reservations() {
         if (formData.check_out < formData.check_in) {
           throw new Error('Check-out date must be after check-in date')
         }
+      }
+
+      const paxLimit = guestLimit(currentProperty)
+      if (!Number.isInteger(pax) || pax < 1 || (paxLimit != null && pax > paxLimit)) {
+        throw new Error(paxLimit == null ? 'Enter at least 1 guest' : `Guests cannot exceed ${paxLimit}`)
       }
 
       if (isOccupyingStatus(formData.status)) {
@@ -263,7 +268,7 @@ export default function Reservations() {
       )[0]
     : undefined
 
-  const handlePaxChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  const handlePaxChange = (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const newPax = Number(e.target.value)
     setPax(newPax)
     
@@ -315,16 +320,25 @@ export default function Reservations() {
                 <input name="guest_name" placeholder="Guest Name" value={formData.guest_name} onChange={handleChange} className="input-field" required />
                 <input name="check_in" type="date" min={editingId ? undefined : today} placeholder="Check In" value={formData.check_in} onChange={handleChange} className="input-field" required />
                 <input name="check_out" type="date" min={editingId ? undefined : (formData.check_in || today)} placeholder="Check Out" value={formData.check_out} onChange={handleChange} className="input-field" required />
-                <select name="pax" value={pax} onChange={handlePaxChange} className="input-field">
-                  {[...Array(currentProperty?.max_pax ?? 5)].map((_, i) => {
-                    const n = i + 1;
-                    return (
+                {guestLimit(currentProperty) == null ? (
+                  <input
+                    name="pax"
+                    type="number"
+                    min={1}
+                    value={pax}
+                    onChange={handlePaxChange}
+                    className="input-field"
+                    required
+                  />
+                ) : (
+                  <select name="pax" value={pax} onChange={handlePaxChange} className="input-field">
+                    {Array.from({ length: guestLimit(currentProperty) || 0 }, (_, i) => i + 1).map(n => (
                       <option key={n} value={n}>
                         {n} Pax {currentProperty ? extraPaxLabel(n, currentProperty) : ''}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                  </select>
+                )}
                 <input name="total_price" type="number" placeholder="Total Price" value={formData.total_price || ''} onChange={handleChange} className="input-field" required />
                 <select name="status" value={formData.status} onChange={handleChange} className="input-field">
                   <option value="confirmed">Confirmed</option>

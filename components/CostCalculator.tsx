@@ -211,7 +211,13 @@ function AvailabilityDateField({
   )
 }
 
-export default function CostCalculator({ reservations }: { reservations: StayRange[] }) {
+export default function CostCalculator({
+  reservations,
+  maxPax = PUBLIC_STAY_RATE.maxPax,
+}: {
+  reservations: StayRange[]
+  maxPax?: number | null
+}) {
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [pax, setPax] = useState(PUBLIC_STAY_RATE.includedPax)
@@ -244,7 +250,7 @@ export default function CostCalculator({ reservations }: { reservations: StayRan
         Holidays: {peso(PUBLIC_STAY_RATE.holidayPrice)} per night.
         The rate covers {PUBLIC_STAY_RATE.includedPax} guests.
         Each additional guest is {peso(PUBLIC_STAY_RATE.extraPaxPrice)}.
-        Maximum {PUBLIC_STAY_RATE.maxPax} guests.
+        {maxPax != null && <> Maximum {maxPax} guests.</>}
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
@@ -288,9 +294,9 @@ export default function CostCalculator({ reservations }: { reservations: StayRan
             <button
               type="button"
               className="btn-primary"
-              style={{ padding: '0.45rem 0.75rem', opacity: pax >= PUBLIC_STAY_RATE.maxPax ? 0.45 : 1 }}
-              onClick={() => setPax(current => Math.min(PUBLIC_STAY_RATE.maxPax, current + 1))}
-              disabled={pax >= PUBLIC_STAY_RATE.maxPax}
+              style={{ padding: '0.45rem 0.75rem', opacity: maxPax != null && pax >= maxPax ? 0.45 : 1 }}
+              onClick={() => setPax(current => (maxPax == null ? current + 1 : Math.min(maxPax, current + 1)))}
+              disabled={maxPax != null && pax >= maxPax}
               aria-label="More guests"
             >
               +
