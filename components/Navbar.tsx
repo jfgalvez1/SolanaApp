@@ -3,13 +3,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthProvider'
 import { useProperty } from './PropertyProvider'
-import { useBookingRequestAlerts } from './BookingRequestAlerts'
 
 const Navbar = () => {
   const { user, signOut } = useAuth()
   const { properties, currentProperty, setCurrentProperty, loading, error } = useProperty()
   const pathname = usePathname()
-  const { pendingCount } = useBookingRequestAlerts()
 
   if (!user) return null
 
@@ -47,28 +45,7 @@ const Navbar = () => {
         <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>Dashboard</Link>
         <Link href="/availability" className={`nav-link ${pathname === '/availability' ? 'active' : ''}`}>Availability</Link>
         <Link href="/reservations" className={`nav-link ${pathname === '/reservations' ? 'active' : ''}`}>Reservations</Link>
-        <Link href="/booking-requests" className={`nav-link ${pathname === '/booking-requests' ? 'active' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-          Booking Requests
-          {pendingCount > 0 && (
-            <span
-              aria-label={`${pendingCount} pending booking ${pendingCount === 1 ? 'request' : 'requests'}`}
-              style={{
-                minWidth: '1.25rem',
-                height: '1.25rem',
-                padding: '0 0.35rem',
-                borderRadius: '999px',
-                background: 'var(--danger)',
-                color: '#fff',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                lineHeight: '1.25rem',
-                textAlign: 'center',
-              }}
-            >
-              {pendingCount}
-            </span>
-          )}
-        </Link>
+        <Link href="/booking-requests" className={`nav-link ${pathname === '/booking-requests' ? 'active' : ''}`}>Booking Requests</Link>
         <Link href="/expenses" className={`nav-link ${pathname === '/expenses' ? 'active' : ''}`}>Expenses</Link>
         <Link href="/safety-lock" className={`nav-link ${pathname === '/safety-lock' ? 'active' : ''}`}>Safety Lock</Link>
         <Link href="/profile" className={`nav-link ${pathname === '/profile' ? 'active' : ''}`}>Profile</Link>

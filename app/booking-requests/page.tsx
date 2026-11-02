@@ -11,7 +11,6 @@ import {
   isOccupyingStatus,
 } from '../../lib/reservationOverlap'
 import { checkInPreferenceOptions } from '../../lib/checkInPreference'
-import { useBookingRequestAlerts } from '../../components/BookingRequestAlerts'
 
 type BookingRequest = Database['public']['Tables']['booking_requests']['Row']
 type Reservation = Database['public']['Tables']['reservations']['Row']
@@ -42,7 +41,6 @@ const emptyEdit = (): EditForm => ({
 
 export default function BookingRequestsPage() {
   const { currentProperty } = useProperty()
-  const { freshIds, refreshToken } = useBookingRequestAlerts()
   const [requests, setRequests] = useState<BookingRequest[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,16 +55,10 @@ export default function BookingRequestsPage() {
     }
   }, [currentProperty])
 
-  useEffect(() => {
-    if (currentProperty && refreshToken > 0) {
-      fetchData(true)
-    }
-  }, [refreshToken])
-
-  const fetchData = async (silent = false) => {
+  const fetchData = async () => {
     if (!currentProperty) return
     try {
-      if (!silent) setLoading(true)
+      setLoading(true)
       const [reqRes, resRes] = await Promise.all([
         supabase
           .from('booking_requests')
@@ -456,21 +448,7 @@ export default function BookingRequestsPage() {
                     displayed.map(req => (
                       <tr key={req.id}>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
-                            {req.guest_name}
-                            {freshIds.includes(req.id) && (
-                              <span style={{
-                                background: 'var(--primary)',
-                                color: '#fff',
-                                borderRadius: '999px',
-                                fontSize: '0.7rem',
-                                fontWeight: 700,
-                                padding: '0.1rem 0.45rem',
-                              }}>
-                                New
-                              </span>
-                            )}
-                          </div>
+                          <div style={{ fontWeight: 500 }}>{req.guest_name}</div>
                           {req.contact_number && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                               {req.contact_number}
