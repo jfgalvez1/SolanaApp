@@ -18,7 +18,7 @@ import {
   subMonths,
 } from 'date-fns'
 import { datesOverlap } from '../lib/reservationOverlap'
-import { nightsBetween, PUBLIC_STAY_RATE, publicNightlyRate } from '../lib/pricing'
+import { nightsBetween, PUBLIC_STAY_RATE, quotePublicStay, type NightKind } from '../lib/pricing'
 
 type StayRange = {
   check_in: string
@@ -32,6 +32,12 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function peso(amount: number) {
   return `₱${amount.toLocaleString('en-US')}`
+}
+
+const NIGHT_LABEL: Record<NightKind, string> = {
+  weekday: 'weekday',
+  weekend: 'weekend',
+  holiday: 'holiday',
 }
 
 function isReservedNight(dayIso: string, reservations: StayRange[]) {
@@ -214,9 +220,7 @@ export default function CostCalculator({ reservations }: { reservations: StayRan
 
   const nights = checkIn && checkOut ? nightsBetween(checkIn, checkOut) : 0
   const datesReady = Boolean(checkIn && checkOut && nights > 0)
-  const nightly = publicNightlyRate(pax)
-  const total = datesReady ? nightly * nights : 0
-  const extraGuests = Math.max(0, pax - PUBLIC_STAY_RATE.includedPax)
+  const quote = datesReady ? quotePublicStay(checkIn, checkOut, pax) : null
   const reserved = datesReady && reservations.some(stay =>
     datesOverlap(checkIn, checkOut, stay.check_in, stay.check_out)
   )
@@ -235,7 +239,10 @@ export default function CostCalculator({ reservations }: { reservations: StayRan
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Check availability dates</h3>
       <p style={{ marginTop: 0, color: 'var(--text-muted)' }}>
-        {peso(PUBLIC_STAY_RATE.basePrice)} per night for {PUBLIC_STAY_RATE.includedPax} guests.
+        Weekdays (Sunday–Thursday): {peso(PUBLIC_STAY_RATE.weekdayPrice)} per night.
+        Weekends (Friday–Saturday): {peso(PUBLIC_STAY_RATE.weekendPrice)} per night.
+        Holidays: {peso(PUBLIC_STAY_RATE.holidayPrice)} per night.
+        The rate covers {PUBLIC_STAY_RATE.includedPax} guests.
         Each additional guest is {peso(PUBLIC_STAY_RATE.extraPaxPrice)}.
         Maximum {PUBLIC_STAY_RATE.maxPax} guests.
       </p>
@@ -300,10 +307,18 @@ export default function CostCalculator({ reservations }: { reservations: StayRan
         ) : (
           <>
             <p style={{ margin: '0 0 0.35rem', color: 'var(--text-muted)' }}>
-              {peso(nightly)} per night × {nights} {nights === 1 ? 'night' : 'nights'}
-              {extraGuests > 0 ? ` (${extraGuests} additional ${extraGuests === 1 ? 'guest' : 'guests'})` : ''}
+              {quote?.lines.map(line => (
+                <span key={line.kind} style={{ display: 'block' }}>
+                  {line.nights} {NIGHT_LABEL[line.kind]} {line.nights === 1 ? 'night' : 'nights'} × {peso(line.rate)}
+                </span>
+              ))}
+              {quote && quote.extraGuests > 0 && (
+                <span style={{ display: 'block' }}>
+                  {quote.extraGuests} additional {quote.extraGuests === 1 ? 'guest' : 'guests'} × {peso(PUBLIC_STAY_RATE.extraPaxPrice)} × {quote.nights} {quote.nights === 1 ? 'night' : 'nights'}
+                </span>
+              )}
             </p>
-            <div className="stat-value">{peso(total)}</div>
+            <div className="stat-value">{peso(quote?.total ?? 0)}</div>
             <p style={{ margin: '0.5rem 0 0', color: reserved ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
               {reserved ? 'These dates are reserved.' : 'You can reserve these dates.'}
             </p>
