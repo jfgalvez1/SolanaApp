@@ -17,6 +17,7 @@ import {
 } from 'date-fns'
 import { Database } from '../lib/database.types'
 import { isOccupyingStatus } from '../lib/reservationOverlap'
+import { stayTimes, type StayTimes } from '../lib/pricing'
 
 type ReservationRow = Database['public']['Tables']['reservations']['Row']
 
@@ -24,8 +25,6 @@ type CalendarReservation = Pick<ReservationRow, 'id' | 'check_in' | 'check_out' 
   Partial<Pick<ReservationRow, 'guest_name' | 'contact_number' | 'pax' | 'total_price' | 'notes' | 'check_in_preference'>>
 
 const WIFI_PASSWORD = 'SolanaVilla24'
-const CHECK_IN_TIME = '2:00 PM'
-const CHECK_OUT_TIME = '11:00 AM'
 
 function formatLongDate(iso: string) {
   return format(parseISO(iso), 'MMMM d, yyyy')
@@ -35,7 +34,7 @@ function formatPeso(amount: number) {
   return `₱${Number(amount).toLocaleString('en-US')}`
 }
 
-function buildGuestCopyText(res: CalendarReservation) {
+function buildGuestCopyText(res: CalendarReservation, times: StayTimes) {
   return [
     `Guest Name(s): ${res.guest_name}`,
     '',
@@ -44,11 +43,11 @@ function buildGuestCopyText(res: CalendarReservation) {
     `Number of Guests: ${res.pax ?? 2} pax`,
     '',
     `Check-in Date: ${formatLongDate(res.check_in)}`,
-    `Check-in Time: ${CHECK_IN_TIME}`,
+    `Check-in Time: ${times.checkIn}`,
     ...(res.check_in_preference ? [`Check-in Preference: ${res.check_in_preference}`] : []),
     '',
     `Check-out Date: ${formatLongDate(res.check_out)}`,
-    `Check-out Time: ${CHECK_OUT_TIME}`,
+    `Check-out Time: ${times.checkOut}`,
     '',
     `Amount Due: ${formatPeso(res.total_price ?? 0)} (to be paid upon check-in)`,
     '',
@@ -79,9 +78,12 @@ interface CalendarProps {
   hideDetails?: boolean
   /** This month and later months. Past months stay hidden, and days are not clickable. */
   availabilityOnly?: boolean
+  /** Property slug. Solana Villa 2 uses different check-in and check-out times. */
+  propertySlug?: string | null
 }
 
-export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange, hideDetails = false, availabilityOnly = false }: CalendarProps) {
+export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange, hideDetails = false, availabilityOnly = false, propertySlug }: CalendarProps) {
+  const times = stayTimes({ slug: propertySlug })
   const [internalMonth, setInternalMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [dayReservations, setDayReservations] = useState<CalendarReservation[]>([])
@@ -144,7 +146,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
   }
 
   const copyReservation = async (res: CalendarReservation) => {
-    await copyText(buildGuestCopyText(res))
+    await copyText(buildGuestCopyText(res, times))
     setCopiedId(res.id)
   }
 
@@ -215,7 +217,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
               <span><strong>Open dates are available.</strong> You can reserve any date that is not highlighted.</span>
             </div>
             <p style={{ margin: '0.15rem 0 0', color: 'var(--text-muted)' }}>
-              Check-in is at <strong style={{ color: 'var(--text-main)' }}>{CHECK_IN_TIME}</strong>. Check-out is at <strong style={{ color: 'var(--text-main)' }}>{CHECK_OUT_TIME}</strong>.
+              Check-in is at <strong style={{ color: 'var(--text-main)' }}>{times.checkIn}</strong>. Check-out is at <strong style={{ color: 'var(--text-main)' }}>{times.checkOut}</strong>.
             </p>
           </div>
         ) : (
@@ -281,14 +283,14 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                       <div><strong>Number of Guests:</strong> {res.pax ?? 2} pax</div>
                       <div>
                         <div><strong>Check-in Date:</strong> {formatLongDate(res.check_in)}</div>
-                        <div><strong>Check-in Time:</strong> {CHECK_IN_TIME}</div>
+                        <div><strong>Check-in Time:</strong> {times.checkIn}</div>
                         {res.check_in_preference && (
                           <div><strong>Check-in Preference:</strong> {res.check_in_preference}</div>
                         )}
                       </div>
                       <div>
                         <div><strong>Check-out Date:</strong> {formatLongDate(res.check_out)}</div>
-                        <div><strong>Check-out Time:</strong> {CHECK_OUT_TIME}</div>
+                        <div><strong>Check-out Time:</strong> {times.checkOut}</div>
                       </div>
                       <div><strong>Amount Due:</strong> {formatPeso(res.total_price ?? 0)} (to be paid upon check-in)</div>
                       <div><strong>WiFi Password:</strong> {WIFI_PASSWORD}</div>

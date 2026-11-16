@@ -18,7 +18,7 @@ import {
   subMonths,
 } from 'date-fns'
 import { datesOverlap } from '../lib/reservationOverlap'
-import { nightsBetween, PUBLIC_STAY_RATE, quotePublicStay, type NightKind } from '../lib/pricing'
+import { nightsBetween, PUBLIC_STAY_RATE, quotePublicStay, stayTimes, type NightKind } from '../lib/pricing'
 
 type StayRange = {
   check_in: string
@@ -53,6 +53,8 @@ function AvailabilityDateField({
   onOpen,
   onClose,
   onSelect,
+  checkInTime,
+  checkOutTime,
 }: {
   label: string
   value: string
@@ -62,6 +64,8 @@ function AvailabilityDateField({
   onOpen: () => void
   onClose: () => void
   onSelect: (iso: string) => void
+  checkInTime: string
+  checkOutTime: string
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [month, setMonth] = useState(() => startOfMonth(value ? parseISO(value) : new Date()))
@@ -202,7 +206,7 @@ function AvailabilityDateField({
               <span><strong>Open dates are available.</strong> You can reserve any date that is not highlighted.</span>
             </div>
             <p style={{ margin: '0.1rem 0 0', color: 'var(--text-muted)' }}>
-              Check-in is at <strong style={{ color: 'var(--text-main)' }}>2:00 PM</strong>. Check-out is at <strong style={{ color: 'var(--text-main)' }}>11:00 AM</strong>.
+              Check-in is at <strong style={{ color: 'var(--text-main)' }}>{checkInTime}</strong>. Check-out is at <strong style={{ color: 'var(--text-main)' }}>{checkOutTime}</strong>.
             </p>
           </div>
         </div>
@@ -214,10 +218,13 @@ function AvailabilityDateField({
 export default function CostCalculator({
   reservations,
   maxPax = PUBLIC_STAY_RATE.maxPax,
+  propertySlug,
 }: {
   reservations: StayRange[]
   maxPax?: number | null
+  propertySlug?: string | null
 }) {
+  const times = stayTimes({ slug: propertySlug })
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [pax, setPax] = useState(PUBLIC_STAY_RATE.includedPax)
@@ -262,6 +269,8 @@ export default function CostCalculator({
           onOpen={() => setOpenField('in')}
           onClose={() => setOpenField(current => (current === 'in' ? null : current))}
           isSelectable={(day) => canSelect('in', day)}
+          checkInTime={times.checkIn}
+          checkOutTime={times.checkOut}
           onSelect={(iso) => {
             setCheckIn(iso)
             if (checkOut && nightsBetween(iso, checkOut) <= 0) setCheckOut('')
@@ -275,6 +284,8 @@ export default function CostCalculator({
           onOpen={() => setOpenField('out')}
           onClose={() => setOpenField(current => (current === 'out' ? null : current))}
           isSelectable={(day) => canSelect('out', day)}
+          checkInTime={times.checkIn}
+          checkOutTime={times.checkOut}
           onSelect={setCheckOut}
         />
         <div>

@@ -168,11 +168,12 @@ export default function AvailabilityPage() {
           key={current?.id || 'villa'}
           reservations={current?.reservations || []}
           maxPax={guestLimit(current ? { slug: current.slug } : null)}
+          propertySlug={current?.slug}
         />
       )}
       {!loading && !error && !current && <div className="card">No villas found.</div>}
       {!loading && !error && current && (
-        <Calendar reservations={current.reservations} hideDetails availabilityOnly />
+        <Calendar reservations={current.reservations} hideDetails availabilityOnly propertySlug={current.slug} />
       )}
     </div>
   )

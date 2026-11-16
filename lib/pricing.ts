@@ -131,6 +131,19 @@ export function stayNights(checkIn: string, checkOut: string): string[] {
   )
 }
 
+export type StayTimes = { checkIn: string; checkOut: string }
+
+/**
+ * Solana Villa checks in at 2:00 PM and checks out at 11:00 AM.
+ * Solana Villa 2 checks in at 11:00 AM and checks out at 2:00 PM.
+ */
+export function stayTimes(property?: { slug?: string | null } | null): StayTimes {
+  if (property?.slug === 'villa-2') {
+    return { checkIn: '11:00 AM', checkOut: '2:00 PM' }
+  }
+  return { checkIn: '2:00 PM', checkOut: '11:00 AM' }
+}
+
 /** Guest cap for a villa. Null means there is no maximum. */
 export function guestLimit(property?: { slug?: string | null; max_pax?: number | null } | null): number | null {
   if (!property) return PUBLIC_STAY_RATE.maxPax

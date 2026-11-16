@@ -221,6 +221,7 @@ export default function Dashboard() {
                reservations={stats.reservations}
                currentMonth={parseISO(`${selectedMonth}-01`)}
                onMonthChange={(date) => setSelectedMonth(format(date, 'yyyy-MM'))}
+               propertySlug={currentProperty?.slug}
              />
           </div>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
