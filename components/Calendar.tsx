@@ -34,8 +34,15 @@ function formatPeso(amount: number) {
   return `₱${Number(amount).toLocaleString('en-US')}`
 }
 
-function buildGuestCopyText(res: CalendarReservation, times: StayTimes) {
+function villaLabel(slug?: string | null): string | null {
+  if (slug === 'villa-1') return 'Solana 1'
+  if (slug === 'villa-2') return 'Solana 2'
+  return null
+}
+
+function buildGuestCopyText(res: CalendarReservation, times: StayTimes, villa: string | null) {
   return [
+    ...(villa ? [`Villa: ${villa}`, ''] : []),
     `Guest Name(s): ${res.guest_name}`,
     '',
     `Contact Number: ${res.contact_number || ''}`,
@@ -84,6 +91,7 @@ interface CalendarProps {
 
 export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange, hideDetails = false, availabilityOnly = false, propertySlug }: CalendarProps) {
   const times = stayTimes({ slug: propertySlug })
+  const villa = villaLabel(propertySlug)
   const [internalMonth, setInternalMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [dayReservations, setDayReservations] = useState<CalendarReservation[]>([])
@@ -146,7 +154,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
   }
 
   const copyReservation = async (res: CalendarReservation) => {
-    await copyText(buildGuestCopyText(res, times))
+    await copyText(buildGuestCopyText(res, times, villa))
     setCopiedId(res.id)
   }
 
@@ -279,6 +287,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                       <span className={`status-badge status-${res.status}`}>{res.status}</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--text-main)' }}>
+                      {villa && <div><strong>Villa:</strong> {villa}</div>}
                       <div><strong>Contact Number:</strong> {res.contact_number || '—'}</div>
                       <div><strong>Number of Guests:</strong> {res.pax ?? 2} pax</div>
                       <div>
