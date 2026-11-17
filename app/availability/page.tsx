@@ -63,11 +63,15 @@ function groupPublicAvailability(rows: PublicAvailabilityRow[]): PublicProperty[
   return Array.from(properties.values())
 }
 
+function villaOrder(property: PublicProperty) {
+  if (property.slug === 'villa-1') return 0
+  if (property.slug === 'villa-2') return 1
+  return 2
+}
+
 function preferredPropertyId(list: PublicProperty[], currentId: string | null) {
   if (currentId && list.some(property => property.id === currentId)) return currentId
-  const preferred = list.find(property => property.slug === 'villa-1')
-    || list.find(property => property.name === 'Solana Villa')
-    || list[0]
+  const preferred = [...list].sort((a, b) => villaOrder(a) - villaOrder(b) || a.name.localeCompare(b.name))[0]
   return preferred?.id ?? null
 }
 
@@ -140,26 +144,32 @@ export default function AvailabilityPage() {
   }, [user, authLoading, propertyLoading, propertyError, ownedProperties])
 
   const current = properties.find(property => property.id === propertyId) || properties[0]
+  const villas = [...properties].sort((a, b) => villaOrder(a) - villaOrder(b) || a.name.localeCompare(b.name))
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
       <div className="page-header">
-        <h1 style={{ marginBottom: 0 }}>{current?.name || 'Solana Villa'}</h1>
-        {properties.length > 1 && (
-          <div className="month-selector">
-            <label htmlFor="availability-villa">Villa:</label>
-            <select
-              id="availability-villa"
-              value={current?.id || ''}
-              onChange={(event) => setPropertyId(event.target.value)}
-            >
-              {properties.map(property => (
-                <option key={property.id} value={property.id}>{property.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <h1 style={{ marginBottom: 0 }}>{properties.length > 1 ? 'Available dates' : (current?.name || 'Solana Villa')}</h1>
       </div>
+
+      {!loading && !error && villas.length > 1 && (
+        <div className="villa-choice" role="group" aria-label="Choose a villa">
+          {villas.map(property => {
+            const selected = property.id === current?.id
+            return (
+              <button
+                key={property.id}
+                type="button"
+                className={`villa-choice-btn${selected ? ' active' : ''}`}
+                aria-pressed={selected}
+                onClick={() => setPropertyId(property.id)}
+              >
+                {property.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {loading && <div className="card">Loading...</div>}
       {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
