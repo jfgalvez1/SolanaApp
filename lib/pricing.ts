@@ -1,4 +1,5 @@
 import { Property } from '../components/PropertyProvider'
+import { stayTimesFor } from './stayType'
 
 /**
  * Rate card.
@@ -135,13 +136,14 @@ export type StayTimes = { checkIn: string; checkOut: string }
 
 /**
  * Solana Villa checks in at 2:00 PM and checks out at 11:00 AM.
- * Solana Villa 2 checks in at 11:00 AM and checks out at 2:00 PM.
+ * Solana Villa 2 overnight checks in at 12:00 PM and checks out at 9:00 AM.
+ * Solana Villa 2 day tour checks in at 11:00 AM and checks out at 9:00 PM.
  */
-export function stayTimes(property?: { slug?: string | null } | null): StayTimes {
-  if (property?.slug === 'villa-2') {
-    return { checkIn: '11:00 AM', checkOut: '2:00 PM' }
-  }
-  return { checkIn: '2:00 PM', checkOut: '11:00 AM' }
+export function stayTimes(
+  property?: { slug?: string | null } | null,
+  stayType?: string | null
+): StayTimes {
+  return stayTimesFor(property?.slug, stayType)
 }
 
 /** Guest cap for a villa. Null means there is no maximum. */

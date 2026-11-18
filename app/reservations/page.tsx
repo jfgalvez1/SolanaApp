@@ -11,6 +11,11 @@ import {
   isOccupyingStatus
 } from '../../lib/reservationOverlap'
 import { checkInPreferenceOptions } from '../../lib/checkInPreference'
+import {
+  checkoutFollowsCheckIn,
+  checkoutOrderMessage,
+  stayTypeOptions,
+} from '../../lib/stayType'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 type NewReservation = Database['public']['Tables']['reservations']['Insert']
@@ -37,7 +42,8 @@ export default function Reservations() {
     status: 'confirmed',
     notes: '',
     contact_number: '',
-    check_in_preference: ''
+    check_in_preference: '',
+    stay_type: ''
   })
 
   const today = getLocalToday()
@@ -53,7 +59,8 @@ export default function Reservations() {
       status: 'confirmed',
       notes: '',
       contact_number: '',
-      check_in_preference: ''
+      check_in_preference: '',
+      stay_type: ''
     })
     setPax(currentProperty?.included_pax ?? 2)
   }
@@ -113,8 +120,8 @@ export default function Reservations() {
         if (formData.check_in < today) {
           throw new Error('Check-in date cannot be in the past')
         }
-        if (formData.check_out < formData.check_in) {
-          throw new Error('Check-out date must be after check-in date')
+        if (!checkoutFollowsCheckIn(formData.check_in, formData.check_out, formData.stay_type)) {
+          throw new Error(checkoutOrderMessage(formData.stay_type))
         }
       }
 
@@ -124,21 +131,20 @@ export default function Reservations() {
       }
 
       if (isOccupyingStatus(formData.status)) {
-        let conflictQuery = supabase
+        const { data: existing, error: conflictError } = await supabase
           .from('reservations')
           .select('id, guest_name, check_in, check_out, status')
           .eq('property_id', currentProperty.id)
           .in('status', ['confirmed', 'reserved'])
-          .lt('check_in', formData.check_out)
-          .gt('check_out', formData.check_in)
 
-        if (editingId) {
-          conflictQuery = conflictQuery.neq('id', editingId)
-        }
-
-        const { data: conflicts, error: conflictError } = await conflictQuery
         if (conflictError) throw conflictError
-        if (conflicts && conflicts.length > 0) {
+        const conflicts = findOverlappingReservations(
+          existing || [],
+          formData.check_in,
+          formData.check_out,
+          editingId
+        )
+        if (conflicts.length > 0) {
           throw new Error(formatOverlapError(conflicts))
         }
       }
@@ -148,6 +154,7 @@ export default function Reservations() {
         pax,
         contact_number: (formData.contact_number || '').trim() || null,
         check_in_preference: (formData.check_in_preference || '').trim() || null,
+        stay_type: (formData.stay_type || '').trim() || null,
         user_id: user.id,
         property_id: currentProperty.id,
         status: formData.status as Database['public']['Tables']['reservations']['Row']['status']
@@ -188,7 +195,8 @@ export default function Reservations() {
       status: reservation.status,
       notes: reservation.notes,
       contact_number: reservation.contact_number || '',
-      check_in_preference: reservation.check_in_preference || ''
+      check_in_preference: reservation.check_in_preference || '',
+      stay_type: reservation.stay_type || ''
     })
     setPax(reservation.pax ?? 2)
     setShowForm(true)
@@ -227,7 +235,7 @@ export default function Reservations() {
   const handleExportCSV = () => {
     if (displayedReservations.length === 0) return
 
-    const headers = ['Guest Name', 'Contact Number', 'Check In', 'Check Out', 'Check-in Preference', 'Pax', 'Total Price', 'Status', 'Notes']
+    const headers = ['Guest Name', 'Contact Number', 'Check In', 'Check Out', 'Stay Type', 'Check-in Preference', 'Pax', 'Total Price', 'Status', 'Notes']
     
     const csvRows = [headers.join(',')]
     
@@ -237,6 +245,7 @@ export default function Reservations() {
         `"${(res.contact_number || '').replace(/"/g, '""')}"`,
         `"${res.check_in || ''}"`,
         `"${res.check_out || ''}"`,
+        `"${(res.stay_type || '').replace(/"/g, '""')}"`,
         `"${(res.check_in_preference || '').replace(/"/g, '""')}"`,
         res.pax ?? 2,
         res.total_price || 0,
@@ -353,6 +362,14 @@ export default function Reservations() {
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
+                {(currentProperty?.slug === 'villa-2' || formData.stay_type) && (
+                  <select name="stay_type" value={formData.stay_type || ''} onChange={handleChange} className="input-field">
+                    <option value="">Type of stay (Optional)</option>
+                    {stayTypeOptions(formData.stay_type || '').map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               {dateConflict && (
                 <p style={{ color: 'var(--danger)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
@@ -447,6 +464,9 @@ export default function Reservations() {
                       )}
                       {res.check_in_preference && (
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Check-in: {res.check_in_preference}</div>
+                      )}
+                      {res.stay_type && (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.stay_type}</div>
                       )}
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.notes}</div>
                     </td>

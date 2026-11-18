@@ -11,6 +11,12 @@ import {
   isOccupyingStatus,
 } from '../../lib/reservationOverlap'
 import { checkInPreferenceOptions } from '../../lib/checkInPreference'
+import {
+  checkoutFollowsCheckIn,
+  checkoutOrderMessage,
+  readStayType,
+  stayTypeOptions,
+} from '../../lib/stayType'
 import { useBookingRequestAlerts } from '../../components/BookingRequestAlerts'
 
 type BookingRequest = Database['public']['Tables']['booking_requests']['Row']
@@ -26,6 +32,7 @@ type EditForm = {
   notes: string
   contact_number: string
   check_in_preference: string
+  stay_type: string
 }
 
 const emptyEdit = (): EditForm => ({
@@ -38,6 +45,7 @@ const emptyEdit = (): EditForm => ({
   notes: '',
   contact_number: '',
   check_in_preference: '',
+  stay_type: '',
 })
 
 export default function BookingRequestsPage() {
@@ -108,6 +116,7 @@ export default function BookingRequestsPage() {
       notes: req.notes || '',
       contact_number: req.contact_number || '',
       check_in_preference: req.check_in_preference || '',
+      stay_type: readStayType(req),
     })
   }
 
@@ -157,8 +166,8 @@ export default function BookingRequestsPage() {
       alert(formatOverlapError(liveConflicts))
       return
     }
-    if (form.check_out <= form.check_in) {
-      alert('Check-out must be after check-in')
+    if (!checkoutFollowsCheckIn(form.check_in, form.check_out, form.stay_type)) {
+      alert(checkoutOrderMessage(form.stay_type))
       return
     }
     const paxLimit = guestLimit(currentProperty)
@@ -187,6 +196,7 @@ export default function BookingRequestsPage() {
             notes: form.notes || 'Approved from booking request',
             contact_number: form.contact_number.trim() || null,
             check_in_preference: form.check_in_preference.trim() || null,
+            stay_type: form.stay_type.trim() || null,
           },
         ])
         .select('id')
@@ -206,6 +216,7 @@ export default function BookingRequestsPage() {
           notes: form.notes,
           contact_number: form.contact_number.trim() || null,
           check_in_preference: form.check_in_preference.trim() || null,
+          stay_type: form.stay_type.trim() || null,
           reservation_id: reservation.id,
           reviewed_at: new Date().toISOString(),
           overlap_warning: null,
@@ -416,6 +427,21 @@ export default function BookingRequestsPage() {
                     </option>
                   ))}
                 </select>
+                {(currentProperty?.slug === 'villa-2' || form.stay_type) && (
+                  <select
+                    name="stay_type"
+                    className="input-field"
+                    value={form.stay_type}
+                    onChange={handleFormChange}
+                  >
+                    <option value="">Type of stay (Optional)</option>
+                    {stayTypeOptions(form.stay_type).map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               {liveConflicts.length > 0 && (
                 <p style={{ color: 'var(--danger)', margin: '0 0 0.75rem' }}>
@@ -525,6 +551,11 @@ export default function BookingRequestsPage() {
                           {req.check_in_preference && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                               Check-in: {req.check_in_preference}
+                            </div>
+                          )}
+                          {readStayType(req) && (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              {readStayType(req)}
                             </div>
                           )}
                           {req.overlap_warning && (

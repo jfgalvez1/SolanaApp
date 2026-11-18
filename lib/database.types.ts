@@ -121,6 +121,7 @@ export interface Database {
           notes: string | null
           contact_number: string | null
           check_in_preference: string | null
+          stay_type: string | null
           created_at: string
         }
         Insert: {
@@ -136,6 +137,7 @@ export interface Database {
           notes?: string | null
           contact_number?: string | null
           check_in_preference?: string | null
+          stay_type?: string | null
           created_at?: string
         }
         Update: {
@@ -151,6 +153,7 @@ export interface Database {
           notes?: string | null
           contact_number?: string | null
           check_in_preference?: string | null
+          stay_type?: string | null
           created_at?: string
         }
         Relationships: []
@@ -170,6 +173,7 @@ export interface Database {
           notes: string | null
           contact_number: string | null
           check_in_preference: string | null
+          stay_type: string | null
           reservation_id: string | null
           created_at: string
           reviewed_at: string | null
@@ -188,6 +192,7 @@ export interface Database {
           notes?: string | null
           contact_number?: string | null
           check_in_preference?: string | null
+          stay_type?: string | null
           reservation_id?: string | null
           created_at?: string
           reviewed_at?: string | null
@@ -206,6 +211,7 @@ export interface Database {
           notes?: string | null
           contact_number?: string | null
           check_in_preference?: string | null
+          stay_type?: string | null
           reservation_id?: string | null
           created_at?: string
           reviewed_at?: string | null

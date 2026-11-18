@@ -14,14 +14,36 @@ export function isOccupyingStatus(status: string | null | undefined): status is 
   return !!status && (OCCUPYING_STATUSES as readonly string[]).includes(status)
 }
 
-/** Occupied nights are [check_in, check_out). Checkout day is free for the next guest. */
+function addIsoDays(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number)
+  if (!year || !month || !day) return iso
+  const shifted = new Date(Date.UTC(year, month - 1, day + days))
+  return shifted.toISOString().slice(0, 10)
+}
+
+/**
+ * Occupied nights are [check_in, check_out). Checkout morning is free.
+ * A same-day stay, such as a day tour, occupies that calendar day.
+ */
+export function exclusiveStayEnd(checkIn: string, checkOut: string): string {
+  if (checkIn && checkOut === checkIn) return addIsoDays(checkIn, 1)
+  return checkOut
+}
+
+export function occupiesDate(checkIn: string, checkOut: string, dayIso: string): boolean {
+  if (!checkIn || !checkOut || !dayIso) return false
+  return dayIso >= checkIn && dayIso < exclusiveStayEnd(checkIn, checkOut)
+}
+
 export function datesOverlap(
   checkInA: string,
   checkOutA: string,
   checkInB: string,
   checkOutB: string
 ): boolean {
-  return checkInA < checkOutB && checkInB < checkOutA
+  const endA = exclusiveStayEnd(checkInA, checkOutA)
+  const endB = exclusiveStayEnd(checkInB, checkOutB)
+  return checkInA < endB && checkInB < endA
 }
 
 export function findOverlappingReservations<T extends OverlapReservation>(

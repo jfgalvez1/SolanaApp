@@ -3,6 +3,11 @@ import { createSupabaseAdmin } from '../../../../lib/supabaseAdmin'
 import { calculateTotalPrice, guestLimit } from '../../../../lib/pricing'
 import { findOverlappingReservations } from '../../../../lib/reservationOverlap'
 import { Property } from '../../../../components/PropertyProvider'
+import {
+  checkoutFollowsCheckIn,
+  checkoutOrderMessage,
+  DAY_TOUR_STAY,
+} from '../../../../lib/stayType'
 
 type FormBookingBody = {
   secret?: string
@@ -13,6 +18,7 @@ type FormBookingBody = {
   pax?: number | string
   contact_number?: string
   check_in_preference?: string
+  stay_type?: string
 }
 
 function isIsoDate(value: string): boolean {
@@ -44,6 +50,7 @@ export async function POST(request: NextRequest) {
     const pax = Number(body.pax)
     const contactNumber = (body.contact_number || '').trim()
     const checkInPreference = (body.check_in_preference || '').trim()
+    let stayType = (body.stay_type || '').trim()
 
     if (!guestName) {
       return NextResponse.json({ error: 'guest_name is required' }, { status: 400 })
@@ -57,9 +64,12 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(pax) || pax < 1) {
       return NextResponse.json({ error: 'pax must be a positive number' }, { status: 400 })
     }
-    if (checkOut <= checkIn) {
+    if (propertySlug === 'villa-2' && checkIn && checkOut && checkIn === checkOut && !stayType) {
+      stayType = DAY_TOUR_STAY
+    }
+    if (!checkoutFollowsCheckIn(checkIn, checkOut, stayType)) {
       return NextResponse.json(
-        { error: 'check_out must be after check_in' },
+        { error: checkoutOrderMessage(stayType) },
         { status: 400 }
       )
     }
@@ -72,6 +82,12 @@ export async function POST(request: NextRequest) {
     if (checkInPreference.length > 120) {
       return NextResponse.json(
         { error: 'check_in_preference must be 120 characters or fewer' },
+        { status: 400 }
+      )
+    }
+    if (stayType.length > 160) {
+      return NextResponse.json(
+        { error: 'stay_type must be 160 characters or fewer' },
         { status: 400 }
       )
     }
@@ -122,28 +138,51 @@ export async function POST(request: NextRequest) {
       property as Property
     )
 
-    const { data: bookingRequest, error: insertError } = await admin
+    const bookingRow = {
+      user_id: property.user_id,
+      property_id: property.id,
+      guest_name: guestName,
+      check_in: checkIn,
+      check_out: checkOut,
+      pax,
+      suggested_price: suggestedPrice,
+      status: 'pending' as const,
+      overlap_warning: overlapWarning,
+      notes: 'Submitted via Google Form',
+      contact_number: contactNumber || null,
+      check_in_preference: checkInPreference || null,
+      stay_type: stayType || null,
+    }
+
+    let { data: bookingRequest, error: insertError } = await admin
       .from('booking_requests')
-      .insert([
-        {
-          user_id: property.user_id,
-          property_id: property.id,
-          guest_name: guestName,
-          check_in: checkIn,
-          check_out: checkOut,
-          pax,
-          suggested_price: suggestedPrice,
-          status: 'pending',
-          overlap_warning: overlapWarning,
-          notes: 'Submitted via Google Form',
-          contact_number: contactNumber || null,
-          check_in_preference: checkInPreference || null,
-        },
-      ])
+      .insert([bookingRow])
       .select(
-        'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning, contact_number, check_in_preference'
+        'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning, contact_number, check_in_preference, stay_type'
       )
       .single()
+
+    if (insertError && /stay_type/i.test(insertError.message)) {
+      const { stay_type: droppedStay, ...withoutStay } = bookingRow
+      const fallback = await admin
+        .from('booking_requests')
+        .insert([
+          {
+            ...withoutStay,
+            notes: droppedStay
+              ? `Submitted via Google Form. Stay: ${droppedStay}`
+              : 'Submitted via Google Form',
+          },
+        ])
+        .select(
+          'id, guest_name, check_in, check_out, pax, suggested_price, status, overlap_warning, contact_number, check_in_preference'
+        )
+        .single()
+      bookingRequest = fallback.data
+        ? { ...fallback.data, stay_type: droppedStay }
+        : null
+      insertError = fallback.error
+    }
 
     if (insertError) throw insertError
 

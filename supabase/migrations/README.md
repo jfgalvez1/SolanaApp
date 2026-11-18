@@ -39,6 +39,8 @@ Then run `003_contact_number.sql` to add the optional `contact_number` column on
 
 Then run `004_check_in_preference.sql` to add the optional `check_in_preference` column on both tables.
 
+Then run `008_stay_type.sql` so Villa 2 can store Overnight or Day Tour.
+
 ## Phase 2: Deploy app
 
 Deploy the updated app only after Step 6 passes.

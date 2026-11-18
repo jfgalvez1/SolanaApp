@@ -16,13 +16,14 @@ import {
   startOfDay
 } from 'date-fns'
 import { Database } from '../lib/database.types'
-import { isOccupyingStatus } from '../lib/reservationOverlap'
-import { stayTimes, type StayTimes } from '../lib/pricing'
+import { isOccupyingStatus, occupiesDate } from '../lib/reservationOverlap'
+import { stayTimes } from '../lib/pricing'
+import StayHours from './StayHours'
 
 type ReservationRow = Database['public']['Tables']['reservations']['Row']
 
 type CalendarReservation = Pick<ReservationRow, 'id' | 'check_in' | 'check_out' | 'status'> &
-  Partial<Pick<ReservationRow, 'guest_name' | 'contact_number' | 'pax' | 'total_price' | 'notes' | 'check_in_preference'>>
+  Partial<Pick<ReservationRow, 'guest_name' | 'contact_number' | 'pax' | 'total_price' | 'notes' | 'check_in_preference' | 'stay_type'>>
 
 const WIFI_PASSWORD = 'SolanaVilla24'
 
@@ -40,7 +41,8 @@ function villaLabel(slug?: string | null): string | null {
   return null
 }
 
-function buildGuestCopyText(res: CalendarReservation, times: StayTimes, villa: string | null) {
+function buildGuestCopyText(res: CalendarReservation, propertySlug: string | null | undefined, villa: string | null) {
+  const times = stayTimes({ slug: propertySlug }, res.stay_type)
   return [
     ...(villa ? [`Villa: ${villa}`, ''] : []),
     `Guest Name(s): ${res.guest_name}`,
@@ -49,6 +51,7 @@ function buildGuestCopyText(res: CalendarReservation, times: StayTimes, villa: s
     '',
     `Number of Guests: ${res.pax ?? 2} pax`,
     '',
+    ...(res.stay_type ? [`Stay: ${res.stay_type}`, ''] : []),
     `Check-in Date: ${formatLongDate(res.check_in)}`,
     `Check-in Time: ${times.checkIn}`,
     ...(res.check_in_preference ? [`Check-in Preference: ${res.check_in_preference}`] : []),
@@ -85,12 +88,11 @@ interface CalendarProps {
   hideDetails?: boolean
   /** This month and later months. Past months stay hidden, and days are not clickable. */
   availabilityOnly?: boolean
-  /** Property slug. Solana Villa 2 uses different check-in and check-out times. */
+  /** Property slug. Solana Villa 2 times depend on overnight or day tour. */
   propertySlug?: string | null
 }
 
 export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange, hideDetails = false, availabilityOnly = false, propertySlug }: CalendarProps) {
-  const times = stayTimes({ slug: propertySlug })
   const villa = villaLabel(propertySlug)
   const [internalMonth, setInternalMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
@@ -132,7 +134,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
     return reservations.filter(res => {
       if (!isOccupyingStatus(res.status)) return false
       // Occupied nights are [check_in, check_out). Checkout day is free.
-      return dayIso >= res.check_in && dayIso < res.check_out
+      return occupiesDate(res.check_in, res.check_out, dayIso)
     })
   }
 
@@ -154,7 +156,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
   }
 
   const copyReservation = async (res: CalendarReservation) => {
-    await copyText(buildGuestCopyText(res, times, villa))
+    await copyText(buildGuestCopyText(res, propertySlug, villa))
     setCopiedId(res.id)
   }
 
@@ -224,9 +226,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
               <span style={{ width: '1rem', height: '1rem', marginTop: '0.2rem', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: 'transparent', flexShrink: 0 }} />
               <span><strong>Open dates are available.</strong> You can reserve any date that is not highlighted.</span>
             </div>
-            <p style={{ margin: '0.15rem 0 0', color: 'var(--text-muted)' }}>
-              Check-in is at <strong style={{ color: 'var(--text-main)' }}>{times.checkIn}</strong>. Check-out is at <strong style={{ color: 'var(--text-main)' }}>{times.checkOut}</strong>.
-            </p>
+            <StayHours slug={propertySlug} />
           </div>
         ) : (
           <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -290,16 +290,17 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                       {villa && <div><strong>Villa:</strong> {villa}</div>}
                       <div><strong>Contact Number:</strong> {res.contact_number || '—'}</div>
                       <div><strong>Number of Guests:</strong> {res.pax ?? 2} pax</div>
+                      {res.stay_type && <div><strong>Stay:</strong> {res.stay_type}</div>}
                       <div>
                         <div><strong>Check-in Date:</strong> {formatLongDate(res.check_in)}</div>
-                        <div><strong>Check-in Time:</strong> {times.checkIn}</div>
+                        <div><strong>Check-in Time:</strong> {stayTimes({ slug: propertySlug }, res.stay_type).checkIn}</div>
                         {res.check_in_preference && (
                           <div><strong>Check-in Preference:</strong> {res.check_in_preference}</div>
                         )}
                       </div>
                       <div>
                         <div><strong>Check-out Date:</strong> {formatLongDate(res.check_out)}</div>
-                        <div><strong>Check-out Time:</strong> {times.checkOut}</div>
+                        <div><strong>Check-out Time:</strong> {stayTimes({ slug: propertySlug }, res.stay_type).checkOut}</div>
                       </div>
                       <div><strong>Amount Due:</strong> {formatPeso(res.total_price ?? 0)} (to be paid upon check-in)</div>
                       <div><strong>WiFi Password:</strong> {WIFI_PASSWORD}</div>

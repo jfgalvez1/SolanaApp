@@ -13,23 +13,30 @@
  *   WEBHOOK_URL     = https://YOUR_DOMAIN/api/bookings/from-form
  *   WEBHOOK_SECRET  = same value as BOOKING_WEBHOOK_SECRET
  *   PROPERTY_SLUG   = villa-1   (optional; defaults to villa-1)
+ *                   = villa-2   for the Solana Villa 2 form
  *
- * Form question titles must match EXACTLY (or edit the keys below):
+ * Question titles are matched loosely. Required:
  *   Name of Guest/s*
  *   Number of Guest that will stay*
  *   Please select your check-in date:
  *   Please select your check-out date:
- *   Contact number          (optional)
- *   Check-in preference*    (optional)
+ * Optional:
+ *   Contact number
+ *   Check-in preference*
+ *   What type of stay would you like to book?
+ *     Overnight (12:00 PM – 9:00 AM)
+ *     Day Tour (11:00 AM – 9:00 PM)
+ * A day tour may use the same check-in and check-out date.
  */
 
 var QUESTION = {
-  guestName: 'Name of Guest/s*',
-  pax: 'Number of Guest that will stay*',
-  checkIn: 'Please select your check-in date:',
-  checkOut: 'Please select your check-out date:',
-  contactNumber: 'Contact number',
-  checkInPreference: 'Check-in preference*',
+  guestName: ['name of guest'],
+  pax: ['number of guest'],
+  checkIn: ['check-in date', 'check in date'],
+  checkOut: ['check-out date', 'check out date'],
+  contactNumber: ['contact number'],
+  checkInPreference: ['check-in preference', 'check in preference'],
+  stayType: ['type of stay'],
 };
 
 function onFormSubmit(e) {
@@ -51,6 +58,7 @@ function onFormSubmit(e) {
     check_out: toIsoDate(answers.checkOut),
     contact_number: answers.contactNumber,
     check_in_preference: answers.checkInPreference,
+    stay_type: answers.stayType,
   };
 
   var response = UrlFetchApp.fetch(webhookUrl, {
@@ -70,41 +78,39 @@ function onFormSubmit(e) {
     throw new Error('Webhook failed (' + code + '): ' + body);
   }
 
-  console.log('Reservation created', body);
+  console.log('Booking request created', body);
 }
 
 /** Supports Form-bound (e.response) and Sheet-bound (e.namedValues) triggers */
 function readAnswers(e) {
+  var map = answersMap(e);
+  return {
+    guestName: requireAnswer(map, QUESTION.guestName, 'guest name'),
+    pax: requireAnswer(map, QUESTION.pax, 'number of guests'),
+    checkIn: requireAnswer(map, QUESTION.checkIn, 'check-in date'),
+    checkOut: requireAnswer(map, QUESTION.checkOut, 'check-out date'),
+    contactNumber: findAnswer(map, QUESTION.contactNumber),
+    checkInPreference: findAnswer(map, QUESTION.checkInPreference),
+    stayType: findAnswer(map, QUESTION.stayType),
+  };
+}
+
+function answersMap(e) {
+  var map = {};
   if (e && e.namedValues) {
-    var named = {};
     var namedKeys = Object.keys(e.namedValues);
     for (var n = 0; n < namedKeys.length; n++) {
-      named[namedKeys[n]] = firstValue(e.namedValues[namedKeys[n]]);
+      map[namedKeys[n]] = firstValue(e.namedValues[namedKeys[n]]);
     }
-    return {
-      guestName: named[QUESTION.guestName] || '',
-      pax: named[QUESTION.pax] || '',
-      checkIn: named[QUESTION.checkIn] || '',
-      checkOut: named[QUESTION.checkOut] || '',
-      contactNumber: findContactNumber(named),
-      checkInPreference: findCheckInPreference(named),
-    };
+    return map;
   }
 
   if (e && e.response) {
-    var map = {};
     var items = e.response.getItemResponses();
     for (var i = 0; i < items.length; i++) {
       map[items[i].getItem().getTitle()] = String(items[i].getResponse()).trim();
     }
-    return {
-      guestName: map[QUESTION.guestName] || '',
-      pax: map[QUESTION.pax] || '',
-      checkIn: map[QUESTION.checkIn] || '',
-      checkOut: map[QUESTION.checkOut] || '',
-      contactNumber: findContactNumber(map),
-      checkInPreference: findCheckInPreference(map),
-    };
+    return map;
   }
 
   throw new Error('Unsupported form submit event. Use On form submit trigger.');
@@ -115,34 +121,34 @@ function firstValue(values) {
   return String(values[0]).trim();
 }
 
-/** Matches "Contact number", ignoring case and a trailing *. */
-function findContactNumber(map) {
-  var exact = map[QUESTION.contactNumber];
-  if (exact) return String(exact).trim();
+function normalizeTitle(title) {
+  return String(title || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\*+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
+function findAnswer(map, needles) {
   var keys = Object.keys(map);
   for (var i = 0; i < keys.length; i++) {
-    var normalized = String(keys[i]).trim().toLowerCase().replace(/\*+$/, '').trim();
-    if (normalized === 'contact number' || normalized.indexOf('contact number') === 0) {
-      return String(map[keys[i]] || '').trim();
+    var normalized = normalizeTitle(keys[i]);
+    for (var j = 0; j < needles.length; j++) {
+      if (normalized.indexOf(needles[j]) === -1) continue;
+      var value = String(map[keys[i]] || '').trim();
+      if (value) return value;
     }
   }
   return '';
 }
 
-/** Matches "Check-in preference", ignoring case and a trailing *. */
-function findCheckInPreference(map) {
-  var exact = map[QUESTION.checkInPreference];
-  if (exact) return String(exact).trim();
-
-  var keys = Object.keys(map);
-  for (var i = 0; i < keys.length; i++) {
-    var normalized = String(keys[i]).trim().toLowerCase().replace(/\*+$/, '').trim();
-    if (normalized === 'check-in preference' || normalized === 'check in preference') {
-      return String(map[keys[i]] || '').trim();
-    }
-  }
-  return '';
+function requireAnswer(map, needles, label) {
+  var value = findAnswer(map, needles);
+  if (value) return value;
+  throw new Error(
+    'Could not find ' + label + '. Questions received: ' + Object.keys(map).join(' | ')
+  );
 }
 
 /** Converts Google Form / Sheets date values to YYYY-MM-DD */

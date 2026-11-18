@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import AuthGuard from '../../components/AuthGuard'
 import { useAuth } from '../../components/AuthProvider'
-import { format, parseISO, startOfYear, addMonths, endOfMonth, eachDayOfInterval, startOfDay, eachMonthOfInterval } from 'date-fns'
+import { format, parseISO, startOfYear, addMonths, endOfMonth, eachDayOfInterval, eachMonthOfInterval } from 'date-fns'
+import { occupiesDate } from '../../lib/reservationOverlap'
 
 interface MonthData {
   occupiedNights: number
@@ -74,9 +75,7 @@ export default function BitcoinReserve() {
       const isOccupied = allReservations.some(r => {
         if (!['confirmed', 'reserved'].includes(r.status)) return false
         if (!r.check_in || !r.check_out) return false
-        const checkIn = startOfDay(parseISO(r.check_in))
-        const checkOut = startOfDay(parseISO(r.check_out))
-        return day >= checkIn && day < checkOut
+        return occupiesDate(r.check_in, r.check_out, format(day, 'yyyy-MM-dd'))
       })
       if (isOccupied) occupiedDaysCount++
     })

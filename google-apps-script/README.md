@@ -44,6 +44,16 @@ These Form question titles must match exactly (or edit `QUESTION` in the script)
 | Please select your check-out date: | `check_out` |
 | Contact number | `contact_number` (optional) |
 | Check-in preference* | `check_in_preference` (optional) |
+| What type of stay would you like to book? | `stay_type` (optional; Villa 2) |
+
+Villa 2 stay choices:
+
+| Choice | Check-in | Check-out |
+|---|---|---|
+| Overnight (12:00 PM – 9:00 AM) | 12:00 PM | 9:00 AM the next morning |
+| Day Tour (11:00 AM – 9:00 PM) | 11:00 AM | 9:00 PM the same day |
+
+A day tour can use the same date for check-in and check-out. Overnight still needs a later check-out date.
 
 ## 4. Database (one-time)
 
@@ -53,8 +63,12 @@ Then run `supabase/migrations/003_contact_number.sql` so the optional contact nu
 
 Then run `supabase/migrations/004_check_in_preference.sql` so the **Check-in preference*** answer can be saved.
 
+Then run `supabase/migrations/008_stay_type.sql` so the Villa 2 stay type can be saved.
+
 ## 5. Test
 
 Submit a test response on the Form. In the app, open **Booking Requests** — you should see a new **pending** row. Review → edit if needed → **Approve** (creates a reservation) or **Reject**.
 
 If dates overlap an existing booking, the request still appears with an overlap warning; approve is blocked until you change the dates.
+
+If the Form says the response was recorded but **Booking Requests** stays empty, open the form’s Apps Script → **Executions**. A failed run shows the error. After editing questions, confirm the **On form submit** trigger for `onFormSubmit` is still there, then paste the latest `FormToReservation.gs` and save. Changing a question does not update the script that is already saved in Google.

@@ -6,7 +6,8 @@ import { useProperty } from '../components/PropertyProvider'
 import AuthGuard from '../components/AuthGuard'
 import Calendar from '../components/Calendar'
 import CircularProgress from '../components/CircularProgress'
-import { format, parseISO, isSameMonth, endOfMonth, endOfYear, eachMonthOfInterval, addMonths, startOfYear, getDaysInMonth, eachDayOfInterval, startOfDay } from 'date-fns'
+import { format, parseISO, isSameMonth, endOfMonth, endOfYear, eachMonthOfInterval, addMonths, startOfYear, getDaysInMonth, eachDayOfInterval } from 'date-fns'
+import { occupiesDate } from '../lib/reservationOverlap'
 
 interface Stats {
   monthlyRevenue: number
@@ -89,9 +90,7 @@ export default function Dashboard() {
       const isOccupied = allReservations.some(r => {
         if (!['confirmed', 'reserved'].includes(r.status)) return false
         if (!r.check_in || !r.check_out) return false
-        const checkIn = startOfDay(parseISO(r.check_in))
-        const checkOut = startOfDay(parseISO(r.check_out))
-        return day >= checkIn && day < checkOut
+        return occupiesDate(r.check_in, r.check_out, format(day, 'yyyy-MM-dd'))
       })
       if (isOccupied) occupiedDaysCount++
     })
@@ -155,9 +154,7 @@ export default function Dashboard() {
       const isOccupied = allReservations.some(r => {
         if (!['confirmed', 'reserved'].includes(r.status)) return false
         if (!r.check_in || !r.check_out) return false
-        const checkIn = startOfDay(parseISO(r.check_in))
-        const checkOut = startOfDay(parseISO(r.check_out))
-        return day >= checkIn && day < checkOut
+        return occupiesDate(r.check_in, r.check_out, format(day, 'yyyy-MM-dd'))
       })
       if (isOccupied) occupiedNights++
     })

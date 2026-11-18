@@ -17,8 +17,9 @@ import {
   startOfWeek,
   subMonths,
 } from 'date-fns'
-import { datesOverlap } from '../lib/reservationOverlap'
-import { nightsBetween, PUBLIC_STAY_RATE, quotePublicStay, stayTimes, type NightKind } from '../lib/pricing'
+import { datesOverlap, occupiesDate } from '../lib/reservationOverlap'
+import { nightsBetween, PUBLIC_STAY_RATE, quotePublicStay, type NightKind } from '../lib/pricing'
+import StayHours from './StayHours'
 
 type StayRange = {
   check_in: string
@@ -41,7 +42,7 @@ const NIGHT_LABEL: Record<NightKind, string> = {
 }
 
 function isReservedNight(dayIso: string, reservations: StayRange[]) {
-  return reservations.some(stay => dayIso >= stay.check_in && dayIso < stay.check_out)
+  return reservations.some(stay => occupiesDate(stay.check_in, stay.check_out, dayIso))
 }
 
 function AvailabilityDateField({
@@ -53,8 +54,7 @@ function AvailabilityDateField({
   onOpen,
   onClose,
   onSelect,
-  checkInTime,
-  checkOutTime,
+  propertySlug,
 }: {
   label: string
   value: string
@@ -64,8 +64,7 @@ function AvailabilityDateField({
   onOpen: () => void
   onClose: () => void
   onSelect: (iso: string) => void
-  checkInTime: string
-  checkOutTime: string
+  propertySlug?: string | null
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [month, setMonth] = useState(() => startOfMonth(value ? parseISO(value) : new Date()))
@@ -205,9 +204,7 @@ function AvailabilityDateField({
               <span style={{ width: '0.85rem', height: '0.85rem', marginTop: '0.15rem', borderRadius: '4px', border: '1px solid var(--border)', flexShrink: 0 }} />
               <span><strong>Open dates are available.</strong> You can reserve any date that is not highlighted.</span>
             </div>
-            <p style={{ margin: '0.1rem 0 0', color: 'var(--text-muted)' }}>
-              Check-in is at <strong style={{ color: 'var(--text-main)' }}>{checkInTime}</strong>. Check-out is at <strong style={{ color: 'var(--text-main)' }}>{checkOutTime}</strong>.
-            </p>
+            <StayHours slug={propertySlug} margin="0.1rem 0 0" />
           </div>
         </div>
       )}
@@ -224,7 +221,6 @@ export default function CostCalculator({
   maxPax?: number | null
   propertySlug?: string | null
 }) {
-  const times = stayTimes({ slug: propertySlug })
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [pax, setPax] = useState(PUBLIC_STAY_RATE.includedPax)
@@ -269,8 +265,7 @@ export default function CostCalculator({
           onOpen={() => setOpenField('in')}
           onClose={() => setOpenField(current => (current === 'in' ? null : current))}
           isSelectable={(day) => canSelect('in', day)}
-          checkInTime={times.checkIn}
-          checkOutTime={times.checkOut}
+          propertySlug={propertySlug}
           onSelect={(iso) => {
             setCheckIn(iso)
             if (checkOut && nightsBetween(iso, checkOut) <= 0) setCheckOut('')
@@ -284,8 +279,7 @@ export default function CostCalculator({
           onOpen={() => setOpenField('out')}
           onClose={() => setOpenField(current => (current === 'out' ? null : current))}
           isSelectable={(day) => canSelect('out', day)}
-          checkInTime={times.checkIn}
-          checkOutTime={times.checkOut}
+          propertySlug={propertySlug}
           onSelect={setCheckOut}
         />
         <div>
