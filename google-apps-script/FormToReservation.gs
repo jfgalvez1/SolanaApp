@@ -89,7 +89,7 @@ function readAnswers(e) {
     pax: requireAnswer(map, QUESTION.pax, 'number of guests'),
     checkIn: requireAnswer(map, QUESTION.checkIn, 'check-in date'),
     checkOut: requireAnswer(map, QUESTION.checkOut, 'check-out date'),
-    contactNumber: findAnswer(map, QUESTION.contactNumber),
+    contactNumber: phoneAnswer(findAnswer(map, QUESTION.contactNumber)),
     checkInPreference: findAnswer(map, QUESTION.checkInPreference),
     stayType: findAnswer(map, QUESTION.stayType),
   };
@@ -132,15 +132,30 @@ function normalizeTitle(title) {
 
 function findAnswer(map, needles) {
   var keys = Object.keys(map);
+  var best = '';
+  var bestScore = 1000000;
   for (var i = 0; i < keys.length; i++) {
     var normalized = normalizeTitle(keys[i]);
     for (var j = 0; j < needles.length; j++) {
-      if (normalized.indexOf(needles[j]) === -1) continue;
+      var at = normalized.indexOf(needles[j]);
+      if (at === -1) continue;
       var value = String(map[keys[i]] || '').trim();
-      if (value) return value;
+      if (!value) continue;
+      // Prefer the short question "Contact number" over the consent text that mentions those words.
+      var score = normalized === needles[j] ? 0 : at === 0 ? normalized.length : 1000 + normalized.length;
+      if (score < bestScore) {
+        best = value;
+        bestScore = score;
+      }
     }
   }
-  return '';
+  return best;
+}
+
+function phoneAnswer(value) {
+  var text = String(value || '').trim();
+  if (!/\d/.test(text)) return '';
+  return text;
 }
 
 function requireAnswer(map, needles, label) {

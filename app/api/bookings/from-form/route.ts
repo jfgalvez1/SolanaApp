@@ -25,6 +25,15 @@ function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
 }
 
+/** Keep a phone number. Ignore the privacy-consent answer, which mentions "contact number". */
+function phoneNumber(value: string): string {
+  const trimmed = value.trim()
+  if (!/\d/.test(trimmed)) return ''
+  if (trimmed.length <= 40) return trimmed
+  const compact = trimmed.replace(/[^\d+]/g, '')
+  return compact.length > 0 && compact.length <= 40 ? compact : ''
+}
+
 export async function POST(request: NextRequest) {
   try {
     const expectedSecret = process.env.BOOKING_WEBHOOK_SECRET
@@ -48,7 +57,7 @@ export async function POST(request: NextRequest) {
     const checkOut = (body.check_out || '').trim()
     const propertySlug = (body.property_slug || 'villa-1').trim()
     const pax = Number(body.pax)
-    const contactNumber = (body.contact_number || '').trim()
+    const contactNumber = phoneNumber(body.contact_number || '')
     const checkInPreference = (body.check_in_preference || '').trim()
     let stayType = (body.stay_type || '').trim()
 
@@ -70,12 +79,6 @@ export async function POST(request: NextRequest) {
     if (!checkoutFollowsCheckIn(checkIn, checkOut, stayType)) {
       return NextResponse.json(
         { error: checkoutOrderMessage(stayType) },
-        { status: 400 }
-      )
-    }
-    if (contactNumber.length > 40) {
-      return NextResponse.json(
-        { error: 'contact_number must be 40 characters or fewer' },
         { status: 400 }
       )
     }
