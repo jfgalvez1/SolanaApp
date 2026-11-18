@@ -18,6 +18,7 @@ import {
 import { Database } from '../lib/database.types'
 import { isOccupyingStatus, occupiesDate } from '../lib/reservationOverlap'
 import { stayTimes } from '../lib/pricing'
+import { stayTypeLabel } from '../lib/stayType'
 import StayHours from './StayHours'
 
 type ReservationRow = Database['public']['Tables']['reservations']['Row']
@@ -51,7 +52,7 @@ function buildGuestCopyText(res: CalendarReservation, propertySlug: string | nul
     '',
     `Number of Guests: ${res.pax ?? 2} pax`,
     '',
-    ...(res.stay_type ? [`Stay: ${res.stay_type}`, ''] : []),
+    ...(res.stay_type ? [`Stay: ${stayTypeLabel(res.stay_type)}`, ''] : []),
     `Check-in Date: ${formatLongDate(res.check_in)}`,
     `Check-in Time: ${times.checkIn}`,
     ...(res.check_in_preference ? [`Check-in Preference: ${res.check_in_preference}`] : []),
@@ -290,7 +291,7 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                       {villa && <div><strong>Villa:</strong> {villa}</div>}
                       <div><strong>Contact Number:</strong> {res.contact_number || '—'}</div>
                       <div><strong>Number of Guests:</strong> {res.pax ?? 2} pax</div>
-                      {res.stay_type && <div><strong>Stay:</strong> {res.stay_type}</div>}
+                      {res.stay_type && <div><strong>Stay:</strong> {stayTypeLabel(res.stay_type)}</div>}
                       <div>
                         <div><strong>Check-in Date:</strong> {formatLongDate(res.check_in)}</div>
                         <div><strong>Check-in Time:</strong> {stayTimes({ slug: propertySlug }, res.stay_type).checkIn}</div>

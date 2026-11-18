@@ -14,6 +14,7 @@ import { checkInPreferenceOptions } from '../../lib/checkInPreference'
 import {
   checkoutFollowsCheckIn,
   checkoutOrderMessage,
+  stayTypeLabel,
   stayTypeOptions,
 } from '../../lib/stayType'
 
@@ -245,7 +246,7 @@ export default function Reservations() {
         `"${(res.contact_number || '').replace(/"/g, '""')}"`,
         `"${res.check_in || ''}"`,
         `"${res.check_out || ''}"`,
-        `"${(res.stay_type || '').replace(/"/g, '""')}"`,
+        `"${stayTypeLabel(res.stay_type).replace(/"/g, '""')}"`,
         `"${(res.check_in_preference || '').replace(/"/g, '""')}"`,
         res.pax ?? 2,
         res.total_price || 0,
@@ -366,7 +367,7 @@ export default function Reservations() {
                   <select name="stay_type" value={formData.stay_type || ''} onChange={handleChange} className="input-field">
                     <option value="">Type of stay (Optional)</option>
                     {stayTypeOptions(formData.stay_type || '').map(option => (
-                      <option key={option} value={option}>{option}</option>
+                      <option key={option} value={option}>{stayTypeLabel(option)}</option>
                     ))}
                   </select>
                 )}
@@ -466,7 +467,7 @@ export default function Reservations() {
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Check-in: {res.check_in_preference}</div>
                       )}
                       {res.stay_type && (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.stay_type}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{stayTypeLabel(res.stay_type)}</div>
                       )}
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{res.notes}</div>
                     </td>

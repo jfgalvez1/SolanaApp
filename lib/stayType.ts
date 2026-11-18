@@ -13,6 +13,15 @@ export function isDayTour(value: string | null | undefined): boolean {
   return /day\s*tour/i.test(value || '')
 }
 
+/** "Day Tour" or "Overnight". The hours are shown on the check-in and check-out lines. */
+export function stayTypeLabel(value: string | null | undefined): string {
+  const text = (value || '').trim()
+  if (!text) return ''
+  if (isDayTour(text)) return 'Day Tour'
+  if (/overnight/i.test(text)) return 'Overnight'
+  return text.replace(/\s*\([^)]*\)\s*$/, '').trim()
+}
+
 export function stayTypeOptions(current: string): string[] {
   const trimmed = current.trim()
   if (trimmed && !STAY_TYPE_OPTIONS.includes(trimmed as (typeof STAY_TYPE_OPTIONS)[number])) {

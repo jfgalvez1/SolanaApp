@@ -15,6 +15,7 @@ import {
   checkoutFollowsCheckIn,
   checkoutOrderMessage,
   readStayType,
+  stayTypeLabel,
   stayTypeOptions,
 } from '../../lib/stayType'
 import { useBookingRequestAlerts } from '../../components/BookingRequestAlerts'
@@ -437,7 +438,7 @@ export default function BookingRequestsPage() {
                     <option value="">Type of stay (Optional)</option>
                     {stayTypeOptions(form.stay_type).map(option => (
                       <option key={option} value={option}>
-                        {option}
+                        {stayTypeLabel(option)}
                       </option>
                     ))}
                   </select>
@@ -555,7 +556,7 @@ export default function BookingRequestsPage() {
                           )}
                           {readStayType(req) && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                              {readStayType(req)}
+                              {stayTypeLabel(readStayType(req))}
                             </div>
                           )}
                           {req.overlap_warning && (
