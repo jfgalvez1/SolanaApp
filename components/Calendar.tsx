@@ -91,14 +91,21 @@ interface CalendarProps {
   availabilityOnly?: boolean
   /** Property slug. Solana Villa 2 times depend on overnight or day tour. */
   propertySlug?: string | null
+  /** Label of the other villa, such as "Solana 2". Shows a move button when set with onMoveReservation. */
+  moveTargetLabel?: string | null
+  onMoveReservation?: (reservation: CalendarReservation) => Promise<void>
 }
 
-export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange, hideDetails = false, availabilityOnly = false, propertySlug }: CalendarProps) {
+export default function Calendar({ reservations, currentMonth: externalMonth, onMonthChange, hideDetails = false, availabilityOnly = false, propertySlug, moveTargetLabel, onMoveReservation }: CalendarProps) {
   const villa = villaLabel(propertySlug)
   const [internalMonth, setInternalMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [dayReservations, setDayReservations] = useState<CalendarReservation[]>([])
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [movingId, setMovingId] = useState<string | null>(null)
+  const [moveError, setMoveError] = useState<{ id: string; message: string } | null>(null)
+  const [moveNotice, setMoveNotice] = useState<string | null>(null)
+  const canMove = Boolean(moveTargetLabel && onMoveReservation)
 
   useEffect(() => {
     if (!copiedId) return
@@ -154,11 +161,31 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
     setSelectedDay(null)
     setDayReservations([])
     setCopiedId(null)
+    setMovingId(null)
+    setMoveError(null)
+    setMoveNotice(null)
   }
 
   const copyReservation = async (res: CalendarReservation) => {
     await copyText(buildGuestCopyText(res, propertySlug, villa))
     setCopiedId(res.id)
+  }
+
+  const moveReservation = async (res: CalendarReservation) => {
+    if (!onMoveReservation || !moveTargetLabel || movingId) return
+    const guest = res.guest_name?.trim() || 'this booking'
+    if (!window.confirm(`Move ${guest} to ${moveTargetLabel}?`)) return
+    setMoveError(null)
+    setMovingId(res.id)
+    try {
+      await onMoveReservation(res)
+      setDayReservations(current => current.filter(item => item.id !== res.id))
+      setMoveNotice(`Moved to ${moveTargetLabel}.`)
+    } catch (error: any) {
+      setMoveError({ id: res.id, message: error?.message || 'Could not move this booking.' })
+    } finally {
+      setMovingId(null)
+    }
   }
 
   return (
@@ -271,8 +298,14 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
               </button>
             </div>
 
+            {moveNotice && (
+              <p style={{ color: 'var(--success)', margin: '0 0 1rem' }}>{moveNotice}</p>
+            )}
+
             {dayReservations.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', margin: 0 }}>No bookings on this day.</p>
+              <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+                {moveNotice ? 'This day is now open on this villa.' : 'No bookings on this day.'}
+              </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {dayReservations.map(res => (
@@ -311,14 +344,36 @@ export default function Calendar({ reservations, currentMonth: externalMonth, on
                         <strong>Notes:</strong> {res.notes}
                       </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => copyReservation(res)}
-                      className="btn-primary"
-                      style={{ marginTop: '0.9rem', padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-                    >
-                      {copiedId === res.id ? 'Copied' : 'Copy details'}
-                    </button>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.9rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => copyReservation(res)}
+                        className="btn-primary"
+                        style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+                      >
+                        {copiedId === res.id ? 'Copied' : 'Copy details'}
+                      </button>
+                      {canMove && (
+                        <button
+                          type="button"
+                          onClick={() => moveReservation(res)}
+                          disabled={movingId === res.id}
+                          style={{
+                            padding: '0.4rem 0.85rem',
+                            fontSize: '0.85rem',
+                            background: 'white',
+                            color: 'var(--primary)',
+                            border: '1px solid var(--primary)',
+                            opacity: movingId === res.id ? 0.7 : 1
+                          }}
+                        >
+                          {movingId === res.id ? 'Moving…' : `Move to ${moveTargetLabel}`}
+                        </button>
+                      )}
+                    </div>
+                    {moveError?.id === res.id && (
+                      <p style={{ margin: '0.6rem 0 0', color: 'var(--danger)', fontSize: '0.85rem' }}>{moveError.message}</p>
+                    )}
                   </div>
                 ))}
               </div>

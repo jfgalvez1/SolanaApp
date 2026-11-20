@@ -7,7 +7,8 @@ import AuthGuard from '../components/AuthGuard'
 import Calendar from '../components/Calendar'
 import CircularProgress from '../components/CircularProgress'
 import { format, parseISO, isSameMonth, endOfMonth, endOfYear, eachMonthOfInterval, addMonths, startOfYear, getDaysInMonth, eachDayOfInterval } from 'date-fns'
-import { occupiesDate } from '../lib/reservationOverlap'
+import { findOverlappingReservations, isOccupyingStatus, occupiesDate } from '../lib/reservationOverlap'
+import { guestLimit } from '../lib/pricing'
 
 interface Stats {
   monthlyRevenue: number
@@ -24,7 +25,7 @@ interface Stats {
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const { currentProperty } = useProperty()
+  const { currentProperty, properties } = useProperty()
   const [stats, setStats] = useState<Stats>({ 
     monthlyRevenue: 0, monthlyExpenses: 0, monthlyProfit: 0, monthlyBookingCount: 0, occupiedNightsCount: 0, occupancyRate: 0,
     overallRevenue: 0, overallExpenses: 0, overallProfit: 0,
@@ -192,6 +193,66 @@ export default function Dashboard() {
   const averageBookingValue = rangeBookingTotal > 0 ? rangeRevenueTotal / rangeBookingTotal : 0
   const averageOccupancy = rangeDays > 0 ? (rangeOccupiedNights / rangeDays) * 100 : 0
 
+  const otherProperty = (() => {
+    if (!currentProperty) return null
+    const targetSlug = currentProperty.slug === 'villa-1' ? 'villa-2' : currentProperty.slug === 'villa-2' ? 'villa-1' : null
+    if (!targetSlug) return null
+    return properties.find(property => property.slug === targetSlug) ?? null
+  })()
+
+  const otherVillaLabel = otherProperty
+    ? otherProperty.slug === 'villa-1'
+      ? 'Solana 1'
+      : otherProperty.slug === 'villa-2'
+        ? 'Solana 2'
+        : otherProperty.name
+    : null
+
+  const moveReservation = async (reservation: {
+    id: string
+    check_in: string
+    check_out: string
+    status: string
+    pax?: number | null
+  }) => {
+    if (!otherProperty || !otherVillaLabel) throw new Error('The other villa is not available.')
+
+    const guests = reservation.pax ?? 2
+    const limit = guestLimit(otherProperty)
+    if (limit != null && guests > limit) {
+      throw new Error(`${otherVillaLabel} allows up to ${limit} guests. This booking has ${guests}.`)
+    }
+
+    if (isOccupyingStatus(reservation.status)) {
+      const { data: existing, error: conflictError } = await supabase
+        .from('reservations')
+        .select('id, guest_name, check_in, check_out, status')
+        .eq('property_id', otherProperty.id)
+        .in('status', ['confirmed', 'reserved'])
+
+      if (conflictError) throw conflictError
+
+      const conflicts = findOverlappingReservations(existing || [], reservation.check_in, reservation.check_out)
+      if (conflicts.length > 0) {
+        const first = conflicts[0]
+        const range = `${format(parseISO(first.check_in), 'MMM d, yyyy')} – ${format(parseISO(first.check_out), 'MMM d, yyyy')}`
+        const extra = conflicts.length > 1 ? ` and ${conflicts.length - 1} more` : ''
+        throw new Error(`${otherVillaLabel} is already booked by ${first.guest_name} (${range}${extra}).`)
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('reservations')
+      .update({ property_id: otherProperty.id })
+      .eq('id', reservation.id)
+      .select('id')
+
+    if (error) throw error
+    if (!data?.length) throw new Error('Could not move this booking.')
+
+    setAllReservations(current => current.filter(item => item.id !== reservation.id))
+  }
+
   return (
     <AuthGuard>
       <div>
@@ -219,6 +280,8 @@ export default function Dashboard() {
                currentMonth={parseISO(`${selectedMonth}-01`)}
                onMonthChange={(date) => setSelectedMonth(format(date, 'yyyy-MM'))}
                propertySlug={currentProperty?.slug}
+               moveTargetLabel={otherVillaLabel}
+               onMoveReservation={otherProperty ? moveReservation : undefined}
              />
           </div>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
